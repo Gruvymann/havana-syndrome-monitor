@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Havana Syndrome Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f6f3; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e2e2dc;
+    --accent: #2f5d8a; --accent-soft: #e4edf6; --star: #c58a00; --warn: #b3261e; --warn-soft: #fbe9e7;
+    --attack: #c0392b; --skeptic: #2e7d5b; --mixed: #b07d12; --neutral: #9a9a93;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151514; --panel: #1f1f1d; --text: #ececE8; --muted: #9a9a93; --line: #33332f;
+      --accent: #7fb0e0; --accent-soft: #23303d; --star: #e0b040; --warn: #f08070; --warn-soft: #3a2220;
+      --attack: #e07060; --skeptic: #5fbf8f; --mixed: #d8a840; --neutral: #77776f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+           padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  .sub { color: var(--muted); font-size: 12px; font-weight: normal; }
+  button, select, input[type=search] {
+    font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 10px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 60px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 22px; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  .charts { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 12px; }
+  .chart { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; height: 220px; }
+  .chart h3 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .chart canvas { max-height: 180px; }
+  .tabs { display: flex; gap: 4px; margin: 22px 0 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none;
+                 padding: 8px 14px; color: var(--muted); font-weight: 600; }
+  .tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .badge { background: var(--warn); color: var(--panel); border-radius: 999px; padding: 0 7px; font-size: 11px; margin-left: 4px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 10px; }
+  .filters input[type=search] { flex: 1; min-width: 200px; }
+  .filters label { font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chip { border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+  .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .count { color: var(--muted); font-size: 12px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
+  .card:hover { border-color: var(--accent); }
+  .card.unseen { border-left: 3px solid var(--warn); }
+  .card.dim { opacity: .55; }
+  .meta { color: var(--muted); font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .card h2 { font-size: 15px; margin: 4px 0; }
+  .orig { color: var(--muted); font-size: 12px; }
+  .card p { margin: 6px 0 0; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden; }
+  .lang { font-weight: 700; text-transform: uppercase; color: var(--accent); }
+  .tag { background: var(--accent-soft); color: var(--accent); border-radius: 4px; padding: 0 6px; font-size: 11px; }
+  .pill { border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; font-size: 11px; }
+  .pill.kind { border-color: var(--accent); color: var(--accent); text-transform: uppercase; font-weight: 700; }
+  .pill.state { border-color: var(--mixed); color: var(--mixed); }
+  .pill.alert { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+  .pill.off { border-style: dashed; }
+  .pill.video { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
+  .player { position: relative; padding-top: 56.25%; margin-bottom: 14px; border-radius: 8px; overflow: hidden; background: #000; }
+  .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .fr { font-size: 11px; font-weight: 600; }
+  .fr.attack { color: var(--attack); } .fr.skeptic { color: var(--skeptic); } .fr.mixed { color: var(--mixed); }
+  .fr.neutral { display: none; }
+  .star { color: var(--star); }
+  .actions { margin-left: auto; display: flex; gap: 4px; }
+  .actions button { padding: 2px 8px; font-size: 12px; }
+  .story-sub { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; display: none; }
+  .card.open .story-sub { display: block; }
+  .story-sub div { font-size: 13px; padding: 3px 0; display: flex; gap: 8px; }
+  .story-sub div:hover { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  tr.click { cursor: pointer; } tr.click:hover td { background: var(--accent-soft); }
+  .bar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; min-width: 120px; background: var(--line); }
+  .bar span { display: block; height: 100%; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: 8px 0 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  #log { display: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+         padding: 10px 14px; margin-top: 12px; font: 12px/1.45 ui-monospace, Menlo, monospace;
+         max-height: 200px; overflow: auto; white-space: pre-wrap; }
+  .empty { text-align: center; color: var(--muted); padding: 40px; }
+  .note { color: var(--muted); font-size: 12px; margin: 4px 0 10px; }
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(680px, 100%); background: var(--panel);
+            border-left: 1px solid var(--line); transform: translateX(100%); transition: transform .2s;
+            display: flex; flex-direction: column; z-index: 10; }
+  #drawer.open { transform: none; }
+  #drawer .head { padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  #drawer .head h2 { margin: 6px 0; font-size: 17px; }
+  #drawer .body { padding: 16px 20px; overflow: auto; white-space: pre-wrap; flex: 1; }
+  #dPlayer { white-space: normal; }
+  #drawer .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  a { color: var(--accent); }
+  body.static .admin { display: none !important; }
+  mark { background: var(--accent-soft); color: var(--accent); border-radius: 2px; padding: 0 1px; }
+  .snippet { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  #map { height: 540px; border: 1px solid var(--line); border-radius: 8px; z-index: 0; }
+  .leaflet-popup-content { font: 13px/1.45 -apple-system, BlinkMacSystemFont, sans-serif; }
+  .leaflet-popup-content button { margin-top: 6px; }
+  .pinned { display: inline-flex; gap: 6px; align-items: center; background: var(--accent-soft); color: var(--accent);
+            border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; }
+  .pinned button { border: none; background: none; color: inherit; padding: 0 6px; }
+  svg.spark { display: block; }
+  .leaflet-container { background: var(--bg); }
+  @media (prefers-color-scheme: dark) {
+    .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
+  }
+  @media (max-width: 760px) {
+    header, main { padding-left: 16px; padding-right: 16px; }
+    .charts { grid-template-columns: 1fr; }
+    .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body class="static">
+<header>
+  <h1>Havana Syndrome Monitor <div class="sub" id="lastRun">Multilingual news, video and primary sources on AHIs and directed energy · read-only public copy</div></h1>
+  <label class="sub admin"><input type="checkbox" id="useGdelt" checked> include GDELT</label>
+  <button class="primary admin" id="refreshBtn">Scrape now</button>
+  <button class="admin" id="digestBtn">Export digest (.md)</button>
+  <select id="savedDigests" title="Weekly digests saved in the digests/ folder"><option value="">Weekly digests…</option></select>
+</header>
+<main>
+  <div id="log"></div>
+  <div class="stats">
+    <div class="stat"><b id="sTotal">–</b><span>articles</span></div>
+    <div class="stat"><b id="sStories">–</b><span>distinct stories</span></div>
+    <div class="stat"><b id="sWeek">–</b><span>published in last 7 days</span></div>
+    <div class="stat"><b id="sLangs">–</b><span>languages</span></div>
+    <div class="stat"><b id="sCountries">–</b><span>source countries</span></div>
+    <div class="stat"><b id="sPrimary">–</b><span>government, court &amp; research items</span></div>
+  </div>
+  <div class="charts">
+    <div class="chart"><h3>Articles per week (current filter)</h3><canvas id="weekChart"></canvas></div>
+    <div class="chart"><h3>By language (current filter)</h3><canvas id="langChart"></canvas></div>
+  </div>
+
+  <div class="tabs">
+    <button data-view="articles" class="on">Articles</button>
+    <button data-view="stories">Stories</button>
+    <button data-view="countries">Countries &amp; framing</button>
+    <button data-view="map">Map</button>
+    <button data-view="people">People &amp; orgs</button>
+    <button data-view="alerts">Alerts <span class="badge" id="alertBadge" hidden></span></button>
+  </div>
+
+  <div class="filters">
+    <input type="search" id="q" placeholder="Full-text search (any language; try: gabbard OR &quot;unit 29155&quot;)…">
+    <select id="kind">
+      <option value="">All source types</option><option value="news">News</option>
+      <option value="government">Government</option><option value="court">Court cases</option>
+      <option value="research">Research (PubMed)</option>
+      <option value="video">▶ Video</option>
+    </select>
+    <select id="lang"><option value="">All languages</option></select>
+    <select id="country"><option value="">All countries</option></select>
+    <select id="source" class="hide-sm"><option value="">All sources</option></select>
+    <select id="range">
+      <option value="">Any date</option><option value="7">Last 7 days</option>
+      <option value="30">Last 30 days</option><option value="90">Last 90 days</option>
+      <option value="365">Last year</option>
+    </select>
+    <label class="admin"><input type="checkbox" id="starred"> starred</label>
+    <label><input type="checkbox" id="foreign"> non-English</label>
+    <label><input type="checkbox" id="stateOnly"> state media</label>
+    <label><input type="checkbox" id="showOff"> include off-topic</label>
+    <label><input type="checkbox" id="showOrig"> original titles</label>
+  </div>
+  <div class="chips" id="tagChips"></div>
+  <div class="count" id="count"></div>
+  <div id="view"></div>
+</main>
+
+<aside id="drawer">
+  <div class="head">
+    <div class="meta" id="dMeta"></div>
+    <h2 id="dTitle"></h2>
+    <div class="sub" id="dOrig"></div>
+    <div class="btns">
+      <a id="dLink" target="_blank" rel="noopener"><button>Open original ↗</button></a>
+      <a id="dArchive" target="_blank" rel="noopener"><button>Archived copy ↗</button></a>
+      <button class="admin" id="dTranslate">Translate full text</button>
+      <button class="admin" id="dToggle">Show original text</button>
+      <button class="admin" id="dOff">Mark off-topic</button>
+      <button id="dClose" style="margin-left:auto">Close</button>
+    </div>
+  </div>
+  <div class="body"><div id="dPlayer"></div><div id="dBody"></div></div>
+</aside>
+
+<form id="digestForm" method="post" action="/api/digest" style="display:none"><input name="ids"></form>
+
+<script>
+const LANGS = {"ar": "Arabic", "de": "German", "en": "English", "es": "Spanish", "fr": "French", "he": "Hebrew", "it": "Italian", "ja": "Japanese", "ko": "Korean", "no": "Norwegian", "pl": "Polish", "pt": "Portuguese", "ru": "Russian", "uk": "Ukrainian", "zh": "Chinese"};
+const TAGS = ["Device / weapon", "Medical", "Intelligence", "Russia / GRU", "Law / compensation", "Pentagon / military", "Skeptic view"];
+const FRAMES = ["attack", "mixed", "skeptic", "neutral"];
+const FRAME_LABEL = { attack: "Attack framing", skeptic: "Skeptic framing", mixed: "Mixed", neutral: "Neutral / factual" };
+const STATIC = true;   // read-only public copy: data from JSON files, no server
+const PLACES = {"Beijing": {"lat": 39.9, "lon": 116.4, "note": "Reported cases"}, "Belgrade": {"lat": 44.79, "lon": 20.45, "note": "Reported cases, 2021"}, "Berlin": {"lat": 52.52, "lon": 13.4, "note": "Reported cases, 2021"}, "Bogot\u00e1": {"lat": 4.71, "lon": -74.07, "note": "Embassy cases, 2021"}, "Canberra": {"lat": -35.28, "lon": 149.13, "note": "Reported cases"}, "Caracas": {"lat": 10.49, "lon": -66.88, "note": "\"Discombobulator\" claim in Maduro raid, Jan 2026"}, "Frankfurt": {"lat": 50.11, "lon": 8.68, "note": "Consulate employee incident, 2014 (linked to GRU in reporting)"}, "Geneva": {"lat": 46.2, "lon": 6.14, "note": "Reported cases, 2021"}, "Guangzhou": {"lat": 23.13, "lon": 113.26, "note": "US consulate cases, 2018"}, "Hamburg": {"lat": 53.55, "lon": 9.99, "note": "Reported cases"}, "Hanoi": {"lat": 21.03, "lon": 105.85, "note": "Reported before VP Harris\u0027s visit, Aug 2021"}, "Havana": {"lat": 23.11, "lon": -82.37, "note": "First cases, late 2016 (US \u0026 Canadian diplomats)"}, "Jakarta": {"lat": -6.21, "lon": 106.85, "note": "Reported cases"}, "Kyiv": {"lat": 50.45, "lon": 30.52, "note": "Reported cases"}, "London": {"lat": 51.51, "lon": -0.13, "note": "Reported incident"}, "Miami": {"lat": 25.76, "lon": -80.19, "note": "Reported incident"}, "Moscow": {"lat": 55.76, "lon": 37.62, "note": "Moscow Signal, 1953\u201376; reported cases"}, "New Delhi": {"lat": 28.61, "lon": 77.21, "note": "CIA Director Burns\u0027s trip, Sep 2021"}, "Oslo": {"lat": 59.91, "lon": 10.75, "note": "Norwegian scientist\u0027s microwave self-test, 2024"}, "Ottawa": {"lat": 45.42, "lon": -75.7, "note": "Canadian diplomats\u0027 lawsuit and response"}, "Paris": {"lat": 48.86, "lon": 2.35, "note": "Reported cases, 2021"}, "Shanghai": {"lat": 31.23, "lon": 121.47, "note": "Reported cases, 2018"}, "Taipei": {"lat": 25.03, "lon": 121.57, "note": "Reported cases"}, "Tashkent": {"lat": 41.3, "lon": 69.24, "note": "Reported cases"}, "Tbilisi": {"lat": 41.72, "lon": 44.79, "note": "Embassy family member, Oct 2021 (GRU 29155 identified in reporting)"}, "Vienna": {"lat": 48.21, "lon": 16.37, "note": "Dozens of cases, 2021"}, "Vilnius": {"lat": 54.69, "lon": 25.28, "note": "Official affected at NATO summit, 2023"}, "Warsaw": {"lat": 52.23, "lon": 21.01, "note": "Reported cases"}, "Washington, D.C.": {"lat": 38.9, "lon": -77.04, "note": "Ellipse incident, Nov 2020; other DC-area reports"}};
+const ENTITIES = ["Tulsi Gabbard (DNI)", "GRU Unit 29155", "GRU (Russian military intelligence)", "CIA", "ODNI", "FBI", "NSA", "Pentagon / DoD", "State Department", "NIH", "National Academies", "Walter Reed", "Kremlin / Dmitry Peskov", "Greg Edgreen (DIA)", "Mark Zaid (attorney)", "David Relman", "Christo Grozev", "The Insider", "60 Minutes", "Marc Polymeropoulos", "William Burns", "Rick Crawford (Rep.)", "Michael Beck", "James Woolsey", "Kamala Harris", "Donald Trump", "Mark Carney", "Allan Frey", "Homeland Security Investigations", "Peter Highnam", "Robert Baloh / Robert Bartholomew"];
+let all = [], filtered = [], activeTags = new Set(), charts = {}, view = "articles";
+let hits = null;             // full-text search results: Map id -> snippet, or null when not searching
+let pin = { place: "", entity: "" };  // filters set from the Map and People views
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dateOf = a => a.published || a.added_at;
+const fmt = iso => iso ? new Date(iso).toLocaleDateString(undefined, {year:"numeric", month:"short", day:"numeric"}) : "";
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const countBy = (arr, f) => arr.reduce((m, a) => { const k = f(a); if (k) m[k] = (m[k] || 0) + 1; return m; }, {});
+const fillSelect = (id, label, counts, name = k => k) => {
+  const cur = $(id).value;
+  $(id).innerHTML = `<option value="">${label}</option>` + Object.entries(counts).sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => `<option value="${esc(k)}">${esc(name(k))} (${n})</option>`).join("");
+  $(id).value = cur;
+};
+
+async function load() {
+  all = await (await fetch(STATIC ? "data/articles.json" : "/api/articles")).json();
+  const on = all.filter(a => !a.offtopic);
+  fillSelect("lang", "All languages", countBy(on, a => a.lang), l => LANGS[l] || l);
+  fillSelect("country", "All countries", countBy(on, a => a.country));
+  fillSelect("source", "All sources", countBy(on, a => a.source));
+  const week = Date.now() - 7 * 864e5;
+  $("sTotal").textContent = on.length;
+  $("sStories").textContent = new Set(on.map(a => a.cluster_id || -a.id)).size;
+  $("sWeek").textContent = on.filter(a => a.published && new Date(a.published) > week).length;
+  $("sLangs").textContent = new Set(on.map(a => a.lang)).size;
+  $("sCountries").textContent = new Set(on.map(a => a.country).filter(Boolean)).size;
+  $("sPrimary").textContent = on.filter(a => a.kind !== "news").length;
+  const unseen = all.filter(a => a.alert && !a.alert_seen).length;
+  $("alertBadge").hidden = !unseen; $("alertBadge").textContent = unseen;
+  render();
+}
+
+function applyFilters() {
+  const lang = $("lang").value, src = $("source").value;
+  const kind = $("kind").value, country = $("country").value;
+  const days = +$("range").value, cutoff = days ? Date.now() - days * 864e5 : 0;
+  return all.filter(a =>
+    (!hits || hits.has(a.id)) &&
+    (!pin.place || a.places.includes(pin.place)) && (!pin.entity || a.entities.includes(pin.entity)) &&
+    ($("showOff").checked || !a.offtopic) &&
+    (!lang || a.lang === lang) && (!src || a.source === src) && (!kind || (kind === "video" ? a.video : a.kind === kind)) &&
+    (!country || a.country === country) && (!cutoff || new Date(dateOf(a)) > cutoff) &&
+    (!$("starred").checked || a.starred) && (!$("foreign").checked || a.lang !== "en") &&
+    (!$("stateOnly").checked || a.state_media) &&
+    [...activeTags].every(t => a.tags.includes(t)));
+}
+
+function render() {
+  filtered = applyFilters();
+  if (hits) filtered.sort((x, y) => hits.get(x.id).rank - hits.get(y.id).rank);
+  $("tagChips").innerHTML = TAGS.map(t => {
+    const n = filtered.filter(a => a.tags.includes(t)).length;
+    return `<button class="chip ${activeTags.has(t) ? "on" : ""}" data-tag="${esc(t)}">${esc(t)} · ${n}</button>`;
+  }).join("") + ["place", "entity"].filter(k => pin[k]).map(k =>
+    `<span class="pinned">${k === "place" ? "📍" : "👤"} ${esc(pin[k])}<button data-unpin="${k}" title="Remove filter">✕</button></span>`).join("");
+  ({ articles: renderArticles, stories: renderStories, countries: renderCountries, map: renderMap,
+     people: renderPeople, alerts: renderAlerts })[view]();
+  drawCharts();
+}
+
+// Full-text search (server-side SQLite FTS5), debounced
+let searchTimer;
+$("q").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const q = $("q").value.trim();
+    if (!q) { hits = null; return render(); }
+    const res = STATIC ? localSearch(q) : await (await fetch(`/api/search?q=${encodeURIComponent(q)}`)).json();
+    hits = new Map(res.map((r, i) => [r.id, { snippet: r.snippet, rank: i }]));
+    render();
+  }, 250);
+});
+// Public copy: match every word against titles, excerpts and source (no server index).
+function localSearch(q) {
+  const words = q.toLowerCase().replace(/["*]/g, "").split(/\s+/).filter(w => w && w !== "or");
+  const anyMode = /\bOR\b/.test(q);
+  return all.filter(a => {
+    const t = [a.title, a.title_en, a.excerpt, a.excerpt_en, a.source].join(" ").toLowerCase();
+    return anyMode ? words.some(w => t.includes(w)) : words.every(w => t.includes(w));
+  }).map(a => ({ id: a.id, snippet: null }));
+}
+const snippetHtml = s => esc(s).replace(/\[\[/g, "<mark>").replace(/\]\]/g, "</mark>");
+
+function cardMeta(a) {
+  return `<span class="lang">${esc(a.lang)}</span>
+    ${a.kind !== "news" ? `<span class="pill kind">${esc(a.kind)}</span>` : ""}
+    ${a.video ? `<span class="pill video" title="Video">▶ video${a.duration ? " · " + esc(a.duration) : ""}</span>` : ""}
+    <span>${esc(a.source)}</span>${a.country ? `<span>· ${esc(a.country)}</span>` : ""}
+    <span>· ${fmt(dateOf(a))}</span>
+    ${a.state_media ? `<span class="pill state" title="State-owned or government-funded outlet">state media</span>` : ""}
+    ${a.alert ? `<span class="pill alert">alert</span>` : ""}
+    ${a.offtopic ? `<span class="pill off">off-topic?</span>` : ""}
+    <span class="fr ${a.framing}">${esc(FRAME_LABEL[a.framing] || "")}</span>
+    ${a.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}`;
+}
+
+function articleCard(a, extraClass = "") {
+  const orig = $("showOrig").checked;
+  return `<div class="card ${extraClass} ${a.offtopic ? "dim" : ""}" data-id="${a.id}">
+    <div class="meta">${cardMeta(a)}
+      <span class="actions">
+        ${a.archive_url ? `<a href="${esc(a.archive_url)}" target="_blank" rel="noopener" title="Wayback Machine copy"><button>Archived</button></a>` : ""}
+        <button class="admin" data-act="starred" title="Star">${a.starred ? '<span class="star">★</span>' : "☆"}</button>
+        <button class="admin" data-act="hidden" title="Hide this article">Hide</button>
+      </span>
+    </div>
+    <h2>${esc(orig ? a.title : (a.title_en || a.title))}</h2>
+    ${a.lang !== "en" ? `<div class="orig">${esc(orig ? (a.title_en || "(not translated yet)") : a.title)}</div>` : ""}
+    ${hits?.get(a.id)?.snippet ? `<div class="snippet">${snippetHtml(hits.get(a.id).snippet)}</div>`
+      : (a.excerpt_en || a.excerpt) ? `<p>${esc(orig ? a.excerpt : (a.excerpt_en || a.excerpt))}</p>` : ""}
+  </div>`;
+}
+
+// ---------- Map ----------
+let leaflet = null, markerLayer = null, mapWrap = null;
+function renderMap() {
+  const counts = {};
+  filtered.forEach(a => a.places.forEach(p => (counts[p] = counts[p] || []).push(a)));
+  const names = Object.keys(counts).sort((a, b) => counts[b].length - counts[a].length);
+  $("count").innerHTML = `${names.length} places mentioned in ${filtered.length} articles`;
+  // The map lives in one container that is moved in and out of the view, so Leaflet is set up once.
+  if (!mapWrap) {
+    mapWrap = document.createElement("div");
+    mapWrap.innerHTML = `<p class="note">Circle size = number of articles that mention the place. Mentions include background explainers, so read it as “where coverage points to”, not a confirmed incident count. The note under each place summarizes publicly reported incidents. Click a circle, then “Show articles”.</p><div id="map"></div>`;
+  }
+  if (!$("view").contains(mapWrap)) { $("view").innerHTML = ""; $("view").append(mapWrap); }
+  if (!leaflet) {
+    leaflet = L.map("map", { worldCopyJump: true }).setView([30, 10], 2);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 12 }).addTo(leaflet);
+    markerLayer = L.layerGroup().addTo(leaflet);
+  }
+  setTimeout(() => leaflet.invalidateSize(), 0);
+  markerLayer.clearLayers();
+  const max = Math.max(1, ...names.map(n => counts[n].length));
+  const color = cssVar("--warn");
+  names.forEach(name => {
+    const p = PLACES[name], arts = counts[name];
+    const dates = arts.map(dateOf).sort();
+    const m = L.circleMarker([p.lat, p.lon], { radius: 5 + 25 * Math.sqrt(arts.length / max),
+      color, fillColor: color, fillOpacity: 0.35, weight: 1.5 }).addTo(markerLayer);
+    m.bindTooltip(`${name}: ${arts.length}`);
+    m.bindPopup(`<b>${esc(name)}</b><br>${esc(p.note)}<br><span class="sub">${arts.length} articles · ${fmt(dates[0])} – ${fmt(dates[dates.length - 1])}</span><br>
+      <button data-place="${esc(name)}">Show articles</button>`);
+  });
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("button[data-place]");
+  if (b) { pin.place = b.dataset.place; view = "articles"; setTab(); render(); window.scrollTo(0, 0); }
+  const u = e.target.closest("button[data-unpin]");
+  if (u) { pin[u.dataset.unpin] = ""; render(); }
+});
+
+// ---------- People & organizations ----------
+function sparkline(values) {
+  const w = 120, h = 22, max = Math.max(1, ...values);
+  const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - 2 - (v / max) * (h - 4)}`).join(" ");
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${cssVar("--accent")}" stroke-width="1.5"/></svg>`;
+}
+function renderPeople() {
+  const months = [];
+  const now = new Date();
+  for (let i = 23; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(d.toISOString().slice(0, 7)); }
+  const rows = ENTITIES.map(name => {
+    const arts = filtered.filter(a => a.entities.includes(name));
+    if (!arts.length) return null;
+    const dates = arts.map(dateOf).sort();
+    const byMonth = countBy(arts, a => dateOf(a).slice(0, 7));
+    const countries = Object.entries(countBy(arts, a => a.country)).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]);
+    return { name, n: arts.length, stories: new Set(arts.map(a => a.cluster_id || -a.id)).size,
+             first: dates[0], last: dates[dates.length - 1], spark: months.map(m => byMonth[m] || 0), countries };
+  }).filter(Boolean).sort((a, b) => b.n - a.n);
+  $("count").innerHTML = `${rows.length} people and organizations mentioned in ${filtered.length} articles`;
+  $("view").innerHTML = `<p class="note">Mentions are matched in each article's English text (translated where needed). Edit the list in <code>app/config.py</code>. Click a row to see the articles.</p>
+    <table><thead><tr><th>Name</th><th>Articles</th><th class="hide-sm">Stories</th><th>Last 24 months</th>
+      <th class="hide-sm">First seen</th><th>Last seen</th><th class="hide-sm">Top countries</th></tr></thead><tbody>
+    ${rows.map(r => `<tr class="click" data-entity="${esc(r.name)}"><td>${esc(r.name)}</td><td>${r.n}</td>
+      <td class="hide-sm">${r.stories}</td><td>${sparkline(r.spark)}</td><td class="hide-sm">${fmt(r.first)}</td><td>${fmt(r.last)}</td>
+      <td class="hide-sm">${r.countries.map(esc).join(", ")}</td></tr>`).join("")}</tbody></table>`;
+}
+
+const emptyMsg = () => `<div class="empty">${all.length ? "Nothing matches these filters." : "No articles yet — click “Scrape now”."}</div>`;
+
+function renderArticles() {
+  $("count").innerHTML = `${filtered.length} of ${all.filter(a => !a.offtopic).length} articles`;
+  $("view").innerHTML = `<div class="list">${filtered.length ? filtered.slice(0, 500).map(a => articleCard(a)).join("") : emptyMsg()}</div>`;
+}
+
+function storiesOf(arts) {
+  const m = new Map();
+  arts.forEach(a => { const k = a.cluster_id || -a.id; if (!m.has(k)) m.set(k, []); m.get(k).push(a); });
+  return [...m.values()].map(items => {
+    items.sort((x, y) => dateOf(x).localeCompare(dateOf(y)));
+    const lead = [...items].sort((x, y) => (x.lang !== "en") - (y.lang !== "en") || dateOf(x).localeCompare(dateOf(y)))[0];
+    return { items, lead, first: dateOf(items[0]), last: dateOf(items[items.length - 1]) };
+  });
+}
+
+function renderStories() {
+  const sort = $("storySort")?.value || "size";
+  const stories = storiesOf(filtered).sort((a, b) => sort === "size"
+    ? b.items.length - a.items.length || b.last.localeCompare(a.last) : b.last.localeCompare(a.last));
+  $("count").innerHTML = `${stories.length} stories from ${filtered.length} articles
+    <select id="storySort"><option value="size">Most covered first</option><option value="recent">Most recent first</option></select>`;
+  $("storySort").value = sort;
+  $("storySort").onchange = render;
+  $("view").innerHTML = `<p class="note">Articles about the same event are grouped automatically by comparing their English titles and opening lines. Click a story to see every outlet.</p>
+    <div class="list">${stories.length ? stories.slice(0, 300).map(s => {
+      const langs = [...new Set(s.items.map(a => a.lang))], countries = [...new Set(s.items.map(a => a.country).filter(Boolean))];
+      const fr = countBy(s.items, a => a.framing);
+      return `<div class="card story" data-story="${s.lead.id}">
+        <div class="meta"><b>${s.items.length} outlet${s.items.length > 1 ? "s" : ""}</b>
+          <span>· ${langs.length} language${langs.length > 1 ? "s" : ""}: ${langs.map(l => `<span class="lang">${esc(l)}</span>`).join(" ")}</span>
+          ${countries.length ? `<span>· ${countries.length} countr${countries.length > 1 ? "ies" : "y"}</span>` : ""}
+          <span>· ${fmt(s.first)}${s.first.slice(0, 10) !== s.last.slice(0, 10) ? " – " + fmt(s.last) : ""}</span>
+          ${FRAMES.filter(f => fr[f] && f !== "neutral").map(f => `<span class="fr ${f}">${fr[f]} ${f}</span>`).join("")}
+          ${s.lead.tags.slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join("")}
+        </div>
+        <h2>${esc(s.lead.title_en || s.lead.title)}</h2>
+        ${(s.lead.excerpt_en || s.lead.excerpt) ? `<p>${esc(s.lead.excerpt_en || s.lead.excerpt)}</p>` : ""}
+        <div class="story-sub">${s.items.map(a => `<div data-id="${a.id}"><span class="lang">${esc(a.lang)}</span>
+          <span>${esc(a.title_en || a.title)}</span><span class="sub">${esc(a.source)}${a.country ? " · " + esc(a.country) : ""} · ${fmt(dateOf(a))}</span></div>`).join("")}</div>
+      </div>`;
+    }).join("") : emptyMsg()}</div>`;
+}
+
+function renderCountries() {
+  const by = {};
+  filtered.forEach(a => { const c = a.country || "Unknown"; (by[c] = by[c] || []).push(a); });
+  const rows = Object.entries(by).sort((a, b) => b[1].length - a[1].length);
+  $("count").innerHTML = `${rows.length} countries · ${filtered.length} articles`;
+  const color = f => cssVar("--" + f);
+  $("view").innerHTML = `<p class="note">Framing is a keyword heuristic on each article's English title and opening: <b>attack</b> = language about weapons, devices, targeting or attribution;
+    <b>skeptic</b> = psychogenic, hoax, "no evidence", propaganda claims. Treat it as a rough signal, not a verdict. Click a row to filter to that country.</p>
+    <div class="legend">${FRAMES.map(f => `<span><i style="background:${color(f)}"></i>${FRAME_LABEL[f]}</span>`).join("")}</div>
+    <table><thead><tr><th>Country</th><th>Articles</th><th>Framing mix</th><th class="hide-sm">Attack %</th><th class="hide-sm">Skeptic %</th>
+      <th class="hide-sm">State media</th><th class="hide-sm">Top topics</th></tr></thead><tbody>
+    ${rows.map(([c, arts]) => {
+      const fr = countBy(arts, a => a.framing), n = arts.length;
+      const tags = Object.entries(countBy(arts.flatMap(a => a.tags), t => t)).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]);
+      return `<tr class="click" data-country="${esc(c)}"><td>${esc(c)}</td><td>${n}</td>
+        <td><div class="bar">${FRAMES.map(f => fr[f] ? `<span title="${FRAME_LABEL[f]}: ${fr[f]}" style="width:${100 * fr[f] / n}%;background:${color(f)}"></span>` : "").join("")}</div></td>
+        <td class="hide-sm">${Math.round(100 * (fr.attack || 0) / n)}%</td><td class="hide-sm">${Math.round(100 * (fr.skeptic || 0) / n)}%</td>
+        <td class="hide-sm">${arts.filter(a => a.state_media).length || ""}</td>
+        <td class="hide-sm">${tags.map(t => `<span class="tag">${esc(t)}</span>`).join(" ")}</td></tr>`;
+    }).join("")}</tbody></table>`;
+}
+
+function renderAlerts() {
+  const alerts = filtered.filter(a => a.alert);
+  const unseen = alerts.filter(a => !a.alert_seen).length;
+  $("count").innerHTML = `${alerts.length} alerts · ${unseen} unseen <button class="admin" id="seenBtn" ${unseen ? "" : "disabled"}>Mark all seen</button>`;
+  $("seenBtn").onclick = async () => { await fetch("/api/alerts/seen", { method: "POST" }); all.forEach(a => a.alert && (a.alert_seen = 1)); load(); };
+  $("view").innerHTML = `<p class="note">New items flagged since the first scrape: every government, court and research result, plus news whose title matches an alert term (assessment, lawsuit, hearing, declassified, device…). A macOS notification fires when a scrape finds new alerts. Edit the terms in <code>app/config.py</code>.</p>
+    <div class="list">${alerts.length ? alerts.map(a => articleCard(a, a.alert_seen ? "" : "unseen")).join("") : `<div class="empty">No alerts yet. They appear for new items found after the first scrape.</div>`}</div>`;
+}
+
+function drawCharts() {
+  const weeks = {};
+  filtered.forEach(a => {
+    const d = new Date(dateOf(a)); d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+    const k = d.toISOString().slice(0, 10); weeks[k] = (weeks[k] || 0) + 1;
+  });
+  const wk = Object.keys(weeks).sort().slice(-52);
+  const langs = countBy(filtered, a => a.lang);
+  const lk = Object.keys(langs).sort((a, b) => langs[b] - langs[a]);
+  const accent = cssVar("--accent"), muted = cssVar("--muted"), grid = cssVar("--line");
+  const opts = horizontal => ({ responsive: true, maintainAspectRatio: false, indexAxis: horizontal ? "y" : "x",
+    plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: muted, maxRotation: 0, autoSkip: true }, grid: { color: grid } },
+              y: { ticks: { color: muted, precision: 0, autoSkip: false }, grid: { color: grid } } } });
+  const draw = (id, labels, data, horizontal) => {
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart($(id), { type: "bar",
+      data: { labels, datasets: [{ data, backgroundColor: accent, borderRadius: 3 }] }, options: opts(horizontal) });
+  };
+  draw("weekChart", wk.map(k => fmt(k)), wk.map(k => weeks[k]), false);
+  draw("langChart", lk.slice(0, 10).map(l => LANGS[l] || l), lk.slice(0, 10).map(l => langs[l]), true);
+}
+
+// Clicks in the main view
+$("view").addEventListener("click", async e => {
+  const row = e.target.closest("tr[data-country]");
+  if (row) { $("country").value = row.dataset.country === "Unknown" ? "" : row.dataset.country; view = "articles"; setTab(); return render(); }
+  const ent = e.target.closest("tr[data-entity]");
+  if (ent) { pin.entity = ent.dataset.entity; view = "articles"; setTab(); window.scrollTo(0, 0); return render(); }
+  const sub = e.target.closest(".story-sub div[data-id]");
+  if (sub) return openDrawer(+sub.dataset.id);
+  const story = e.target.closest(".card.story");
+  if (story) return story.classList.toggle("open");
+  const card = e.target.closest(".card"); if (!card) return;
+  if (e.target.closest("a")) return;
+  const id = +card.dataset.id, a = all.find(x => x.id === id);
+  const act = e.target.closest("button")?.dataset.act;
+  if (act) {
+    const r = await (await fetch(`/api/article/${id}/${act}`, { method: "POST" })).json();
+    if (act === "hidden") all = all.filter(x => x.id !== id); else a.starred = r.starred;
+    return render();
+  }
+  openDrawer(id);
+});
+$("tagChips").addEventListener("click", e => {
+  const t = e.target.closest(".chip")?.dataset.tag; if (!t) return;
+  activeTags.has(t) ? activeTags.delete(t) : activeTags.add(t); render();
+});
+["lang", "source", "kind", "country", "range", "starred", "foreign", "stateOnly", "showOff", "showOrig"].forEach(id =>
+  $(id).addEventListener("change", render));
+
+// Weekly digests saved by the server in digests/
+async function loadDigests() {
+  const names = await (await fetch(STATIC ? "data/digests.json" : "/api/digests")).json();
+  $("savedDigests").innerHTML = `<option value="">Weekly digests (${names.length})…</option>` +
+    names.map(n => `<option value="${esc(n)}">${esc(n.replace("havana-weekly-", "Week of ").replace(".md", ""))}</option>`).join("");
+}
+$("savedDigests").onchange = e => { if (e.target.value) window.open(`${STATIC ? "" : "/"}digests/${encodeURIComponent(e.target.value)}`); e.target.value = ""; };
+function setTab() { document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === view)); }
+document.querySelector(".tabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-view]"); if (!b) return; view = b.dataset.view; setTab(); render();
+});
+
+// Drawer
+let cur = null, showingOrig = false;
+async function openDrawer(id) {
+  cur = STATIC ? { ...all.find(a => a.id === id) } : await (await fetch(`/api/article/${id}`)).json();
+  showingOrig = false;
+  $("dMeta").innerHTML = cardMeta(cur) + `<span>· via ${esc(cur.found_via)}</span>`;
+  $("dTitle").textContent = cur.title_en || cur.title;
+  $("dOrig").textContent = cur.lang !== "en" ? cur.title : "";
+  $("dLink").href = cur.url;
+  $("dArchive").style.display = cur.archive_url ? "" : "none";
+  if (cur.archive_url) $("dArchive").href = cur.archive_url;
+  const foreign = cur.lang !== "en";
+  $("dTranslate").style.display = foreign && cur.full_text && !cur.full_text_en ? "" : "none";
+  $("dToggle").style.display = foreign && cur.full_text ? "" : "none";
+  $("dToggle").textContent = "Show original text";
+  $("dOff").textContent = cur.offtopic ? "Not off-topic" : "Mark off-topic";
+  const yt = youtubeId(cur.url);
+  $("dPlayer").innerHTML = yt ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${yt}" title="${esc(cur.title)}"
+    allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>` : "";
+  showBody();
+  $("drawer").classList.add("open");
+}
+function youtubeId(url) {
+  const m = (url || "").match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+function showBody() {
+  let text;
+  if (STATIC) text = (cur.excerpt_en || "") + (cur.lang !== "en" && cur.excerpt ? "\n\nOriginal: " + cur.excerpt : "") +
+    (cur.video ? "" : "\n\nShort excerpt only (machine-translated where needed). Use “Open original” to read the full article.");
+  else if (!cur.full_text) text = (cur.excerpt_en || "") + (cur.video ? "" : "\n\n(No article text could be extracted — open the original.)");
+  else if (showingOrig || cur.lang === "en") text = cur.full_text;
+  else text = cur.full_text_en || (cur.excerpt_en ? cur.excerpt_en + "\n\n… (excerpt translated — click “Translate full text” for the rest)" : cur.full_text);
+  $("dBody").textContent = text.trim();
+}
+$("dTranslate").onclick = async () => {
+  $("dTranslate").disabled = true; $("dTranslate").textContent = "Translating…";
+  const r = await (await fetch(`/api/article/${cur.id}/translate`, { method: "POST" })).json();
+  cur.full_text_en = r.full_text_en !== cur.full_text ? r.full_text_en : null; showingOrig = false; showBody();
+  if (!cur.full_text_en) $("dBody").textContent = "Translation services are rate-limited right now — try again in a few minutes.\n\n" + $("dBody").textContent;
+  $("dTranslate").style.display = cur.full_text_en ? "none" : ""; $("dTranslate").disabled = false; $("dTranslate").textContent = "Translate full text";
+};
+$("dToggle").onclick = () => {
+  showingOrig = !showingOrig; $("dToggle").textContent = showingOrig ? "Show English" : "Show original text"; showBody();
+};
+$("dOff").onclick = async () => {
+  const r = await (await fetch(`/api/article/${cur.id}/offtopic`, { method: "POST" })).json();
+  all.find(x => x.id === cur.id).offtopic = r.offtopic ? 1 : 0; cur.offtopic = r.offtopic;
+  $("dOff").textContent = cur.offtopic ? "Not off-topic" : "Mark off-topic"; render();
+};
+const closeDrawer = () => { $("drawer").classList.remove("open"); $("dPlayer").innerHTML = ""; };  // stops playback
+$("dClose").onclick = closeDrawer;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+
+// Digest export of the current filter
+$("digestBtn").onclick = () => {
+  if (!filtered.length) return alert("No articles in the current filter.");
+  document.querySelector("#digestForm input").value = filtered.map(a => a.id).join(",");
+  $("digestForm").submit();
+};
+
+// Scrape with live log
+async function poll() {
+  if (STATIC) {
+    $("lastRun").textContent = `Updated 2026-10-25T21:46:01.432935+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+      " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
+    return;
+  }
+  const s = await (await fetch("/api/status")).json();
+  const parts = [];
+  if (s.last_run) parts.push(`Last scrape: ${new Date(s.last_run).toLocaleString()}`);
+  if (s.next_run && !s.running) parts.push(`next automatic scrape ${new Date(s.next_run).toLocaleString()}`);
+  if (s.archiving) parts.push("archiving to the Wayback Machine…");
+  if (parts.length) $("lastRun").textContent = parts.join(" · ");
+  if (s.log.length) { $("log").style.display = "block"; $("log").textContent = s.log.join("\n"); $("log").scrollTop = 1e9; }
+  $("refreshBtn").disabled = s.running;
+  $("refreshBtn").textContent = s.running ? "Scraping…" : "Scrape now";
+  if (s.running) { if (Date.now() - (poll.lastLoad || 0) > 15000) { poll.lastLoad = Date.now(); load(); } }
+  else if (poll.wasRunning) { load(); loadDigests(); }
+  poll.wasRunning = s.running;
+  clearTimeout(poll.t);
+  poll.t = setTimeout(poll, s.running || s.archiving ? 2000 : 60000);
+}
+$("refreshBtn").onclick = async () => {
+  await fetch(`/api/refresh?gdelt=${$("useGdelt").checked ? 1 : 0}`, { method: "POST" });
+  clearTimeout(poll.t); poll();
+};
+
+load(); poll(); loadDigests();
+</script>
+</body>
+</html>
