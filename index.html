@@ -74,6 +74,7 @@
   .pill.state { border-color: var(--mixed); color: var(--mixed); }
   .pill.alert { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
   .pill.off { border-style: dashed; }
+  .pill.kind.social { border-color: var(--mixed); color: var(--mixed); }
   .pill.video { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
   .player { position: relative; padding-top: 56.25%; margin-bottom: 14px; border-radius: 8px; overflow: hidden; background: #000; }
   .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
@@ -200,6 +201,7 @@
       <option value="">All source types</option><option value="news">News</option>
       <option value="government">Government</option><option value="court">Court cases</option>
       <option value="research">Research (PubMed)</option>
+      <option value="social">Social (Telegram, Reddit)</option>
       <option value="video">▶ Video</option>
     </select>
     <select id="lang"><option value="">All languages</option></select>
@@ -340,7 +342,7 @@ const snippetHtml = s => esc(s).replace(/\[\[/g, "<mark>").replace(/\]\]/g, "</m
 
 function cardMeta(a) {
   return `<span class="lang">${esc(a.lang)}</span>
-    ${a.kind !== "news" ? `<span class="pill kind">${esc(a.kind)}</span>` : ""}
+    ${a.kind !== "news" ? `<span class="pill kind ${a.kind}">${esc(a.kind === "social" ? a.found_via : a.kind)}</span>` : ""}
     ${a.video ? `<span class="pill video" title="Video">▶ video${a.duration ? " · " + esc(a.duration) : ""}</span>` : ""}
     <span>${esc(a.source)}</span>${a.country ? `<span>· ${esc(a.country)}</span>` : ""}
     <span>· ${fmt(dateOf(a))}</span>
@@ -687,7 +689,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-12T03:32:32.404166+00:00";
+  const updated = "2026-11-12T03:45:55.360501+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -702,7 +704,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-12T03:32:32.404166+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-12T03:45:55.360501+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
