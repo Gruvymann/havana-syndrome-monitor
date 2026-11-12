@@ -689,7 +689,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-12T03:45:55.360501+00:00";
+  const updated = "2026-11-12T04:12:32.000310+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -704,7 +704,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-12T03:45:55.360501+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-12T04:12:32.000310+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
