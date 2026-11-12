@@ -6,7 +6,16 @@
 <atom:link href="https://gruvymann.github.io/havana-syndrome-monitor/alerts.xml" rel="self" type="application/rss+xml"/>
 <description>Government, court and research items plus high-signal headlines.</description>
 <language>en</language>
-<lastBuildDate>Thu, 12 Nov 2026 10:51:11 +0000</lastBuildDate>
+<lastBuildDate>Thu, 12 Nov 2026 16:48:02 +0000</lastBuildDate>
+<item>
+<title>McCray v. United States</title>
+<link>https://www.courtlistener.com/docket/73483750/mccray-v-united-states/</link>
+<guid isPermaLink="false">alert-2837</guid>
+<pubDate>Fri, 12 Jun 2026 00:00:00 +0000</pubDate>
+<description>&lt;p&gt;&lt;i&gt;District Court, D. Oregon · United States&lt;/i&gt;&lt;/p&gt;&lt;p&gt;McCray v. United States — District Court, D. Oregon, docket 3:26-cv-01193.
+Nature of suit: 360 Personal Injury: Other. Cause: 28:1331 Fed. Question.
+Parties: Emanuel McCray, United States of America, Meta Platforms, Inc., Anthony Stephen Fauci, X Corp., Atlas Genomics, LLC, United States Centers…&lt;/p&gt;</description>
+</item>
 <item>
 <title>MAHARAJ v. MUNICIPALITY OF NORRISTOWN</title>
 <link>https://www.courtlistener.com/docket/74830603/maharaj-v-municipality-of-norristown/</link>
@@ -370,13 +379,6 @@ If it was related to the Phenomenon, we would potentially hear some noise in tha
 <guid isPermaLink="false">alert-2409</guid>
 <pubDate>Sat, 01 May 2021 04:08:43 +0000</pubDate>
 <description>&lt;p&gt;&lt;i&gt;r/politics (Reddit)&lt;/i&gt;&lt;/p&gt;&lt;p&gt;Linked: https://thehill.com/policy/national-security/551205-senate-intel-vows-to-get-to-the-bottom-of-havana-syndrome-attacks&lt;/p&gt;</description>
-</item>
-<item>
-<title>Director of National Intelligence Concludes Havana Syndrome Unlikely to be a Foreign Attack</title>
-<link>https://www.reddit.com/r/HavanaSyndrome/comments/1ceeuex/director_of_national_intelligence_concludes/</link>
-<guid isPermaLink="false">alert-2345</guid>
-<pubDate>Sat, 27 Apr 2024 13:43:08 +0000</pubDate>
-<description>&lt;p&gt;&lt;i&gt;r/HavanaSyndrome (Reddit)&lt;/i&gt;&lt;/p&gt;&lt;p&gt;Linked: https://youtu.be/gEgTI_ECf9Q?si=yKD1TctGpMcwZY4A&lt;/p&gt;</description>
 </item>
 </channel>
 </rss>
