@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Havana Syndrome Monitor</title>
+<link rel="alternate" type="application/rss+xml" title="Havana Syndrome Monitor — new stories" href="feed.xml">
+<link rel="alternate" type="application/rss+xml" title="Havana Syndrome Monitor — alerts" href="alerts.xml">
+<link rel="alternate" type="application/rss+xml" title="Havana Syndrome Monitor — weekly digests" href="digests.xml">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -108,6 +111,15 @@
   #drawer .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   a { color: var(--accent); }
   body.static .admin { display: none !important; }
+  .subscribe { position: relative; }
+  .subscribe summary { list-style: none; cursor: pointer; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; background: var(--panel); }
+  .subscribe summary::-webkit-details-marker { display: none; }
+  .subscribe .menu { position: absolute; right: 0; top: 38px; z-index: 20; width: 300px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.18); font-size: 13px; }
+  .subscribe .menu b { margin-top: 4px; }
+  #stale { display: none; background: var(--warn-soft); color: var(--warn); border-bottom: 1px solid var(--warn);
+           padding: 8px 24px; font-size: 13px; }
   mark { background: var(--accent-soft); color: var(--accent); border-radius: 2px; padding: 0 1px; }
   .snippet { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
   #map { height: 540px; border: 1px solid var(--line); border-radius: 8px; z-index: 0; }
@@ -117,6 +129,14 @@
             border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; }
   .pinned button { border: none; background: none; color: inherit; padding: 0 6px; }
   svg.spark { display: block; }
+  .card.claim { cursor: default; }
+  .claim-summary { -webkit-line-clamp: unset !important; display: block !important; }
+  .claim-grid { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 18px; margin: 10px 0; align-items: start; }
+  .bar.wide { min-width: 0; height: 12px; margin: 4px 0; }
+  .bar.small { min-width: 0; width: 90px; height: 8px; display: inline-flex; }
+  .crow { display: grid; grid-template-columns: 1fr 90px 40px; gap: 8px; align-items: center; font-size: 12px; }
+  .card .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  @media (max-width: 760px) { .claim-grid { grid-template-columns: 1fr; } }
   .leaflet-container { background: var(--bg); }
   @media (prefers-color-scheme: dark) {
     .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
@@ -129,12 +149,25 @@
 </style>
 </head>
 <body class="static">
+<div id="stale" role="status"></div>
 <header>
   <h1>Havana Syndrome Monitor <div class="sub" id="lastRun">Multilingual news, video and primary sources on AHIs and directed energy · read-only public copy</div></h1>
   <label class="sub admin"><input type="checkbox" id="useGdelt" checked> include GDELT</label>
   <button class="primary admin" id="refreshBtn">Scrape now</button>
   <button class="admin" id="digestBtn">Export digest (.md)</button>
   <select id="savedDigests" title="Weekly digests saved in the digests/ folder"><option value="">Weekly digests…</option></select>
+  <details class="subscribe">
+    <summary>Subscribe</summary>
+    <div class="menu">
+      <b>RSS feeds</b> <span class="sub">— paste into any feed reader</span>
+      <a href="feed.xml" target="_blank" rel="noopener">New stories</a>
+      <a href="alerts.xml" target="_blank" rel="noopener">Alerts only</a>
+      <a href="digests.xml" target="_blank" rel="noopener">Weekly digest</a>
+      <b>By email</b> <span class="sub">— through Blogtrottr, a free RSS-to-email service (you sign up there)</span>
+      <a id="emailDigest" target="_blank" rel="noopener">Email me the weekly digest</a>
+      <a id="emailAlerts" target="_blank" rel="noopener">Email me alerts</a>
+    </div>
+  </details>
 </header>
 <main>
   <div id="log"></div>
@@ -155,6 +188,7 @@
     <button data-view="articles" class="on">Articles</button>
     <button data-view="stories">Stories</button>
     <button data-view="countries">Countries &amp; framing</button>
+    <button data-view="claims">Claims</button>
     <button data-view="map">Map</button>
     <button data-view="people">People &amp; orgs</button>
     <button data-view="alerts">Alerts <span class="badge" id="alertBadge" hidden></span></button>
@@ -214,9 +248,12 @@ const FRAME_LABEL = { attack: "Attack framing", skeptic: "Skeptic framing", mixe
 const STATIC = true;   // read-only public copy: data from JSON files, no server
 const PLACES = {"Beijing": {"lat": 39.9, "lon": 116.4, "note": "Reported cases"}, "Belgrade": {"lat": 44.79, "lon": 20.45, "note": "Reported cases, 2021"}, "Berlin": {"lat": 52.52, "lon": 13.4, "note": "Reported cases, 2021"}, "Bogot\u00e1": {"lat": 4.71, "lon": -74.07, "note": "Embassy cases, 2021"}, "Canberra": {"lat": -35.28, "lon": 149.13, "note": "Reported cases"}, "Caracas": {"lat": 10.49, "lon": -66.88, "note": "\"Discombobulator\" claim in Maduro raid, Jan 2026"}, "Frankfurt": {"lat": 50.11, "lon": 8.68, "note": "Consulate employee incident, 2014 (linked to GRU in reporting)"}, "Geneva": {"lat": 46.2, "lon": 6.14, "note": "Reported cases, 2021"}, "Guangzhou": {"lat": 23.13, "lon": 113.26, "note": "US consulate cases, 2018"}, "Hamburg": {"lat": 53.55, "lon": 9.99, "note": "Reported cases"}, "Hanoi": {"lat": 21.03, "lon": 105.85, "note": "Reported before VP Harris\u0027s visit, Aug 2021"}, "Havana": {"lat": 23.11, "lon": -82.37, "note": "First cases, late 2016 (US \u0026 Canadian diplomats)"}, "Jakarta": {"lat": -6.21, "lon": 106.85, "note": "Reported cases"}, "Kyiv": {"lat": 50.45, "lon": 30.52, "note": "Reported cases"}, "London": {"lat": 51.51, "lon": -0.13, "note": "Reported incident"}, "Miami": {"lat": 25.76, "lon": -80.19, "note": "Reported incident"}, "Moscow": {"lat": 55.76, "lon": 37.62, "note": "Moscow Signal, 1953\u201376; reported cases"}, "New Delhi": {"lat": 28.61, "lon": 77.21, "note": "CIA Director Burns\u0027s trip, Sep 2021"}, "Oslo": {"lat": 59.91, "lon": 10.75, "note": "Norwegian scientist\u0027s microwave self-test, 2024"}, "Ottawa": {"lat": 45.42, "lon": -75.7, "note": "Canadian diplomats\u0027 lawsuit and response"}, "Paris": {"lat": 48.86, "lon": 2.35, "note": "Reported cases, 2021"}, "Shanghai": {"lat": 31.23, "lon": 121.47, "note": "Reported cases, 2018"}, "Taipei": {"lat": 25.03, "lon": 121.57, "note": "Reported cases"}, "Tashkent": {"lat": 41.3, "lon": 69.24, "note": "Reported cases"}, "Tbilisi": {"lat": 41.72, "lon": 44.79, "note": "Embassy family member, Oct 2021 (GRU 29155 identified in reporting)"}, "Vienna": {"lat": 48.21, "lon": 16.37, "note": "Dozens of cases, 2021"}, "Vilnius": {"lat": 54.69, "lon": 25.28, "note": "Official affected at NATO summit, 2023"}, "Warsaw": {"lat": 52.23, "lon": 21.01, "note": "Reported cases"}, "Washington, D.C.": {"lat": 38.9, "lon": -77.04, "note": "Ellipse incident, Nov 2020; other DC-area reports"}};
 const ENTITIES = ["Tulsi Gabbard (DNI)", "GRU Unit 29155", "GRU (Russian military intelligence)", "CIA", "ODNI", "FBI", "NSA", "Pentagon / DoD", "State Department", "NIH", "National Academies", "Walter Reed", "Kremlin / Dmitry Peskov", "Greg Edgreen (DIA)", "Mark Zaid (attorney)", "David Relman", "Christo Grozev", "The Insider", "60 Minutes", "Marc Polymeropoulos", "William Burns", "Rick Crawford (Rep.)", "Michael Beck", "James Woolsey", "Kamala Harris", "Donald Trump", "Mark Carney", "Allan Frey", "Homeland Security Investigations", "Peter Highnam", "Robert Baloh / Robert Bartholomew"];
+const CLAIMS = [{"id": "device_purchase", "name": "US bought a pulsed-RF device", "summary": "Homeland Security Investigations covertly bought a backpack-sized pulsed radio-frequency device with Russian-origin parts in late 2024; the Pentagon has tested it (first reported by CNN, Jan 2026)."}, {"id": "device_tests", "name": "Device caused injuries in animal tests", "summary": "60 Minutes reported (Mar 2026) that more than a year of animal testing of the purchased device produced injuries similar to AHIs."}, {"id": "norway_selftest", "name": "Norwegian scientist\u0027s self-test", "summary": "A Norwegian government scientist tested a microwave-pulse device on himself in 2024 and developed AHI-like symptoms (Washington Post, Feb 2026)."}, {"id": "gru_29155", "name": "Russia\u0027s GRU Unit 29155 was behind attacks", "summary": "The Insider, 60 Minutes and Der Spiegel linked incidents to the Russian military intelligence sabotage unit 29155 (Mar 2024)."}, {"id": "frankfurt_2014", "name": "Frankfurt 2014 incident predates Havana", "summary": "A US consulate employee in Frankfurt was knocked unconscious in Nov 2014, later linked to GRU operatives in reporting."}, {"id": "ic_unlikely", "name": "Intelligence agencies: foreign attack \"very unlikely\"", "summary": "The 2023 and Jan 2025 intelligence assessments judged it very unlikely a foreign adversary was responsible."}, {"id": "gabbard_rescind", "name": "Gabbard rescinded the skeptical assessments", "summary": "DNI Tulsi Gabbard rescinded the 2023 and 2025 intelligence assessments in June 2026, saying they suppressed analysis."}, {"id": "nih_no_injury", "name": "NIH found no detectable brain injury", "summary": "NIH\u0027s 2024 studies in JAMA found no MRI-detectable brain injury or biomarker differences in AHI patients."}, {"id": "nasem_rf", "name": "National Academies: pulsed RF \"most plausible\"", "summary": "The National Academies (Dec 2020) found directed, pulsed radio-frequency energy the most plausible mechanism for distinctive early cases."}, {"id": "psychogenic", "name": "Mass psychogenic illness explains cases", "summary": "Skeptics, including Bartholomew and Baloh and the FBI\u0027s behavioral analysts, argue symptoms spread psychologically rather than from a weapon."}, {"id": "crickets", "name": "The Havana sounds were crickets", "summary": "Researchers matched the 2017 Havana recordings to the Indies short-tailed cricket (2019)."}, {"id": "payments", "name": "Pentagon paid ~$3M in HAVANA Act compensation", "summary": "The Pentagon made its first HAVANA Act payments, nearly $3 million, in July 2026."}, {"id": "discombobulator", "name": "\"Discombobulator\" used in Maduro raid", "summary": "Trump said a secret \"discombobulator\" was used in the Jan 2026 raid that captured Maduro; no official description was given."}];
+const CLAIM_NAME = Object.fromEntries(CLAIMS.map(c => [c.id, c.name]));
+const PIN_ICON = { place: "📍", entity: "👤", claim: "⚖️" };
 let all = [], filtered = [], activeTags = new Set(), charts = {}, view = "articles";
 let hits = null;             // full-text search results: Map id -> snippet, or null when not searching
-let pin = { place: "", entity: "" };  // filters set from the Map and People views
+let pin = { place: "", entity: "", claim: "", stance: "" };  // filters set from the Map, People and Claims views
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const dateOf = a => a.published || a.added_at;
@@ -255,6 +292,7 @@ function applyFilters() {
   return all.filter(a =>
     (!hits || hits.has(a.id)) &&
     (!pin.place || a.places.includes(pin.place)) && (!pin.entity || a.entities.includes(pin.entity)) &&
+    (!pin.claim || (a.claims[pin.claim] && (!pin.stance || a.claims[pin.claim] === pin.stance))) &&
     ($("showOff").checked || !a.offtopic) &&
     (!lang || a.lang === lang) && (!src || a.source === src) && (!kind || (kind === "video" ? a.video : a.kind === kind)) &&
     (!country || a.country === country) && (!cutoff || new Date(dateOf(a)) > cutoff) &&
@@ -269,9 +307,10 @@ function render() {
   $("tagChips").innerHTML = TAGS.map(t => {
     const n = filtered.filter(a => a.tags.includes(t)).length;
     return `<button class="chip ${activeTags.has(t) ? "on" : ""}" data-tag="${esc(t)}">${esc(t)} · ${n}</button>`;
-  }).join("") + ["place", "entity"].filter(k => pin[k]).map(k =>
-    `<span class="pinned">${k === "place" ? "📍" : "👤"} ${esc(pin[k])}<button data-unpin="${k}" title="Remove filter">✕</button></span>`).join("");
-  ({ articles: renderArticles, stories: renderStories, countries: renderCountries, map: renderMap,
+  }).join("") + ["place", "entity", "claim"].filter(k => pin[k]).map(k =>
+    `<span class="pinned">${PIN_ICON[k]} ${esc(k === "claim" ? CLAIM_NAME[pin.claim] +
+      (pin.stance ? (pin.stance === "disputes" ? " · doubt or denial" : " · reporting") : "") : pin[k])}<button data-unpin="${k}" title="Remove filter">✕</button></span>`).join("");
+  ({ articles: renderArticles, stories: renderStories, countries: renderCountries, claims: renderClaims, map: renderMap,
      people: renderPeople, alerts: renderAlerts })[view]();
   drawCharts();
 }
@@ -367,8 +406,50 @@ document.addEventListener("click", e => {
   const b = e.target.closest("button[data-place]");
   if (b) { pin.place = b.dataset.place; view = "articles"; setTab(); render(); window.scrollTo(0, 0); }
   const u = e.target.closest("button[data-unpin]");
-  if (u) { pin[u.dataset.unpin] = ""; render(); }
+  if (u) { pin[u.dataset.unpin] = ""; if (u.dataset.unpin === "claim") pin.stance = ""; render(); }
+  const cb = e.target.closest("button[data-claim]");
+  if (cb) { pin.claim = cb.dataset.claim; pin.stance = cb.dataset.stance || ""; view = "articles"; setTab(); render(); window.scrollTo(0, 0); }
 });
+
+// ---------- Claim tracker ----------
+function renderClaims() {
+  const months = [];
+  const now = new Date();
+  for (let i = 23; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(d.toISOString().slice(0, 7)); }
+  const cards = CLAIMS.map(c => {
+    const arts = filtered.filter(a => a.claims && a.claims[c.id]).sort((x, y) => dateOf(x).localeCompare(dateOf(y)));
+    const doubt = arts.filter(a => a.claims[c.id] === "disputes");
+    const first = arts[0], last = arts[arts.length - 1];
+    const byMonth = countBy(arts, a => dateOf(a).slice(0, 7));
+    const byCountry = {};
+    arts.forEach(a => { const k = a.country || "Unknown"; byCountry[k] = byCountry[k] || { r: 0, d: 0 }; byCountry[k][a.claims[c.id] === "disputes" ? "d" : "r"]++; });
+    const topCountries = Object.entries(byCountry).sort((a, b) => (b[1].r + b[1].d) - (a[1].r + a[1].d)).slice(0, 6);
+    const langs = new Set(arts.map(a => a.lang)).size, stateN = arts.filter(a => a.state_media).length;
+    return { c, arts, doubt, first, last, spark: months.map(m => byMonth[m] || 0), topCountries, langs, stateN };
+  }).sort((a, b) => b.arts.length - a.arts.length);
+  $("count").innerHTML = `${CLAIMS.length} tracked claims across ${filtered.length} articles`;
+  const r = cssVar("--accent"), d = cssVar("--warn");
+  $("view").innerHTML = `<p class="note">Each claim is matched when an article's English text mentions it within a single sentence. <b>Doubt or denial nearby</b> means that sentence also uses words like “denied”, “no evidence”, “unverified” or “propaganda”; it can't tell <i>who</i> is doubting, so open the articles to judge. Edit the claims in <code>app/config.py</code>.</p>
+    <div class="list">${cards.map(k => `<div class="card claim">
+      <div class="meta"><b>${k.arts.length} articles</b><span>· ${k.langs} language${k.langs === 1 ? "" : "s"}</span>
+        ${k.stateN ? `<span>· ${k.stateN} from state media</span>` : ""}
+        ${k.first ? `<span>· first seen ${fmt(dateOf(k.first))} (${esc(k.first.source)}) · latest ${fmt(dateOf(k.last))}</span>` : ""}</div>
+      <h2>${esc(k.c.name)}</h2>
+      <p class="claim-summary">${esc(k.c.summary)}</p>
+      ${k.arts.length ? `<div class="claim-grid">
+        <div><div class="sub">Reporting vs doubt or denial nearby</div>
+          <div class="bar wide"><span style="width:${100 * (k.arts.length - k.doubt.length) / k.arts.length}%;background:${r}"></span><span style="width:${100 * k.doubt.length / k.arts.length}%;background:${d}"></span></div>
+          <div class="sub">${k.arts.length - k.doubt.length} reporting · ${k.doubt.length} with doubt or denial</div></div>
+        <div><div class="sub">Mentions, last 24 months</div>${sparkline(k.spark)}</div>
+        <div><div class="sub">By country (reporting / doubt)</div>${k.topCountries.map(([name, v]) =>
+          `<div class="crow"><span>${esc(name)}</span><span class="bar small"><span style="width:${100 * v.r / (v.r + v.d)}%;background:${r}"></span><span style="width:${100 * v.d / (v.r + v.d)}%;background:${d}"></span></span><span class="sub">${v.r}/${v.d}</span></div>`).join("")}</div>
+      </div>
+      <div class="btns"><button data-claim="${k.c.id}">All ${k.arts.length} articles</button>
+        <button data-claim="${k.c.id}" data-stance="reports">Reporting</button>
+        ${k.doubt.length ? `<button data-claim="${k.c.id}" data-stance="disputes">Doubt or denial (${k.doubt.length})</button>` : ""}</div>`
+      : `<div class="sub">No articles in the current filter mention this claim.</div>`}
+    </div>`).join("")}</div>`;
+}
 
 // ---------- People & organizations ----------
 function sparkline(values) {
@@ -599,9 +680,29 @@ $("digestBtn").onclick = () => {
 };
 
 // Scrape with live log
+// Email subscriptions go through Blogtrottr with the public feed URLs.
+const FEED_BASE = STATIC ? new URL(".", location.href).href : "https://gruvymann.github.io/havana-syndrome-monitor/";
+$("emailDigest").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponent(FEED_BASE + "digests.xml");
+$("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponent(FEED_BASE + "alerts.xml");
+
+// Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
+function checkStale() {
+  const updated = "2026-11-12T03:32:32.404166+00:00";
+  if (!STATIC || !updated) return;
+  const hours = (Date.now() - new Date(updated)) / 36e5;
+  if (hours > 12) {
+    const age = hours < 48 ? `${Math.floor(hours)} hours` : `${Math.floor(hours / 24)} days`;
+    $("stale").textContent = `Heads up: this page hasn't updated in ${age} (last update ${new Date(updated).toLocaleString()}). ` +
+      "It normally refreshes every 6 hours; new coverage will appear once updates resume.";
+    $("stale").style.display = "block";
+  }
+}
+checkStale();
+setInterval(checkStale, 30 * 60 * 1000);
+
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-12T03:08:28.812874+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-12T03:32:32.404166+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
