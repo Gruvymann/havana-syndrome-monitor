@@ -108,6 +108,7 @@
   /* ---------- filters ---------- */
   .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 8px; }
   .filters input[type=search] { flex: 1; min-width: 220px; }
+  #filterArea.search-only .filters > :not(#q), #filterArea.search-only #morePanel, #filterArea.search-only #activeChips { display: none !important; }
   #moreBtn.on { border-color: var(--accent); color: var(--accent); }
   .more { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
   .more .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
@@ -600,7 +601,7 @@ const KIND_LABEL = { government: "government", congress: "Congress", court: "cou
 let COLLS = [];   // [{id, name, n}] — local dashboard only
 const REL_SHORT = { gr: "reliable", nc: "no consensus", m: "rating varies", gu: "unreliable", d: "deprecated", b: "blacklisted" };
 let BILLS = null, WIKI = null, SIGNALS = null, HEALTH = null, COMP = null, DOCKETS = null;
-const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T04:35:41.198211+00:00") : `/api/${name}`;
+const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T04:39:45.891902+00:00") : `/api/${name}`;
 // "New since your last visit": the visit before this one stays the baseline for this whole browser session.
 let lastVisit = null;
 try {
@@ -657,7 +658,7 @@ async function load() {
   // The public copy's data URL carries the publish time, so browsers never pair a new page with stale cached data.
   if (STATIC) {
     // Recent items first (enough for the Briefing), then the archive in the background.
-    const v = "?v=" + encodeURIComponent("2026-11-13T04:35:41.198211+00:00");
+    const v = "?v=" + encodeURIComponent("2026-11-13T04:39:45.891902+00:00");
     if (!load.archive) {
       all = await (await fetch("data/articles-recent.json" + v)).json();
       load.archive = fetch("data/articles-archive.json" + v).then(r => r.json()).then(older => {
@@ -736,7 +737,7 @@ function render() {
     return `<button class="chip ${activeTags.has(t) ? "on" : ""}" data-tag="${esc(t)}">${esc(t)} · ${n}</button>`;
   }).join("");
   renderActive();
-  $("filterArea").hidden = NO_FILTER_VIEWS.includes(view);
+  $("filterArea").classList.toggle("search-only", NO_FILTER_VIEWS.includes(view));  // search stays on every page
   if (view !== "map" && mapPlay) stopMapPlay();
   ({ briefing: renderBriefing, articles: renderArticles, stories: renderStories, timeline: renderTimeline, countries: renderCountries, claims: renderClaims,
      map: renderMap, people: renderPeople, alerts: renderAlerts, collections: renderCollections,
@@ -863,7 +864,7 @@ async function runSearch() {
   if (!q) { hits = null; return render(); }
   const res = STATIC ? localSearch(q) : await (await fetch(`/api/search?q=${encodeURIComponent(q)}`)).json();
   hits = new Map(res.map((r, i) => [r.id, { snippet: r.snippet, rank: i }]));
-  if (view === "briefing") { view = "articles"; setTab(); }
+  if (NO_FILTER_VIEWS.includes(view)) { view = "articles"; setTab(); }
   render();
 }
 $("q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250); });
@@ -2106,7 +2107,7 @@ $("tagChips").addEventListener("click", e => {
 
 // Weekly digests saved by the server in digests/
 async function loadDigests() {
-  const v = "?v=" + encodeURIComponent("2026-11-13T04:35:41.198211+00:00");
+  const v = "?v=" + encodeURIComponent("2026-11-13T04:39:45.891902+00:00");
   const names = await (await fetch(STATIC ? "data/digests.json" + v : "/api/digests")).json();
   let reports = [];
   try { reports = await (await fetch(STATIC ? "data/reports.json" + v : "/api/reports")).json(); } catch (e) {}
@@ -2425,7 +2426,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-13T04:35:41.198211+00:00";
+  const updated = "2026-11-13T04:39:45.891902+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -2440,7 +2441,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-13T04:35:41.198211+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-13T04:39:45.891902+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
