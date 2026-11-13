@@ -11,125 +11,190 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
+  /* Color tokens. Each color has one meaning:
+     accent = interface; alert = alerts only; new = new since last visit; framing = orange (attack) / teal (skeptic);
+     reliability = green (reliable) / gray (no consensus) / plum (unreliable, deprecated). */
   :root {
-    --bg: #f6f6f3; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e2e2dc;
-    --accent: #2f5d8a; --accent-soft: #e4edf6; --star: #c58a00; --warn: #b3261e; --warn-soft: #fbe9e7;
-    --attack: #c0392b; --skeptic: #2e7d5b; --mixed: #b07d12; --neutral: #9a9a93;
+    --bg: #f5f5f2; --panel: #ffffff; --text: #1b1c1e; --muted: #676a70; --line: #e3e3de; --hover: #f0f3f7;
+    --accent: #2f5d8a; --accent-soft: #e6eef7;
+    --alert: #c62828; --alert-soft: #fdecea; --new: #a8660b; --new-soft: #fbf0dc;
+    --attack: #c4561d; --skeptic: #12808f; --mixed: #9b8a4a; --neutral: #9a9a93;
+    --rel-good: #2e7d4f; --rel-mid: #7d828b; --rel-bad: #8e3a8a;
+    --star: #c58a00; --read-size: 17px;
+    --shadow: 0 8px 28px rgba(20, 24, 31, .16);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #151514; --panel: #1f1f1d; --text: #ececE8; --muted: #9a9a93; --line: #33332f;
-      --accent: #7fb0e0; --accent-soft: #23303d; --star: #e0b040; --warn: #f08070; --warn-soft: #3a2220;
-      --attack: #e07060; --skeptic: #5fbf8f; --mixed: #d8a840; --neutral: #77776f;
+      --bg: #141516; --panel: #1d1e20; --text: #ebebe7; --muted: #9b9ea4; --line: #313338; --hover: #24272c;
+      --accent: #84b3e2; --accent-soft: #222f3d;
+      --alert: #f07b6f; --alert-soft: #3a2221; --new: #e3ac4c; --new-soft: #3a2f1a;
+      --attack: #ec8c5a; --skeptic: #4fc0cd; --mixed: #cdbb7a; --neutral: #74777d;
+      --rel-good: #67c08b; --rel-mid: #9a9fa8; --rel-bad: #d38bd0;
+      --star: #e0b040; --shadow: 0 8px 28px rgba(0, 0, 0, .5);
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-           padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  header h1 { font-size: 18px; margin: 0; flex: 1; }
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--accent); }
   .sub { color: var(--muted); font-size: 12px; font-weight: normal; }
   button, select, input[type=search] {
     font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
-    border-radius: 6px; padding: 6px 10px; }
-  button { cursor: pointer; }
+    border-radius: 7px; padding: 6px 10px; }
+  button { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  button:hover { background: var(--hover); }
   button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  button.ghost { border-color: transparent; background: none; }
   button:disabled { opacity: .5; cursor: default; }
-  main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 60px; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
-  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
-  .stat b { display: block; font-size: 22px; }
-  .stat span { color: var(--muted); font-size: 12px; }
+  .ic { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round;
+        stroke-linejoin: round; vertical-align: -2px; flex: none; }
+  .ic.fill { fill: currentColor; }
+  body.static .admin { display: none !important; }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 24px;
+           border-bottom: 1px solid var(--line); background: var(--panel); }
+  .brand { flex: 1; min-width: 240px; }
+  .brand h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  .hactions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  details.menu { position: relative; }
+  details.menu > summary { list-style: none; cursor: pointer; border: 1px solid var(--line); border-radius: 7px;
+                           padding: 6px 10px; background: var(--panel); display: inline-flex; gap: 6px; align-items: center; }
+  details.menu > summary::-webkit-details-marker { display: none; }
+  details.menu > summary:hover { background: var(--hover); }
+  details.menu .pop { position: absolute; right: 0; top: 40px; z-index: 30; width: 300px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+    box-shadow: var(--shadow); font-size: 13px; }
+  details.menu .pop b { margin-top: 4px; }
+  details.menu .pop button { justify-content: flex-start; width: 100%; }
+  #stale { display: none; background: var(--new-soft); color: var(--new); border-bottom: 1px solid var(--new);
+           padding: 8px 24px; font-size: 13px; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 14px 24px 60px; }
+  #log { display: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+         padding: 10px 14px; margin-bottom: 12px; font: 12px/1.45 ui-monospace, Menlo, monospace;
+         max-height: 200px; overflow: auto; white-space: pre-wrap; }
+
+  /* ---------- summary strip and charts ---------- */
+  .strip { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; color: var(--muted); font-size: 13px; }
+  .strip b { color: var(--text); font-size: 15px; margin-right: 3px; }
+  .strip a.newlink { color: var(--new); text-decoration: none; font-weight: 600; }
+  .strip a.newlink b { color: var(--new); }
+  .strip .grow { flex: 1; }
   .charts { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 12px; }
-  .chart { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; height: 220px; }
+  .chart { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; height: 220px; }
   .chart h3 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
   .chart canvas { max-height: 180px; }
-  .tabs { display: flex; gap: 4px; margin: 22px 0 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none;
-                 padding: 8px 14px; color: var(--muted); font-weight: 600; }
-  .tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
-  .badge { background: var(--warn); color: var(--panel); border-radius: 999px; padding: 0 7px; font-size: 11px; margin-left: 4px; }
-  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 10px; }
-  .filters input[type=search] { flex: 1; min-width: 200px; }
-  .filters label { font-size: 13px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+
+  /* ---------- grouped navigation ---------- */
+  .nav { display: flex; align-items: flex-end; gap: 2px; margin: 16px 0 0; border-bottom: 1px solid var(--line);
+         flex-wrap: wrap; row-gap: 6px; }
+  .nav .group { display: flex; flex-direction: column; padding: 0 4px; border-left: 1px solid var(--line); }
+  .nav .group:first-child { border-left: none; padding-left: 0; }
+  .nav .gl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 0 10px; font-weight: 600; }
+  .nav .tabs { display: flex; }
+  .nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none;
+                padding: 6px 9px 8px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .nav button:hover { color: var(--text); background: none; }
+  .nav button.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .badge { background: var(--alert); color: #fff; border-radius: 999px; padding: 0 6px; font-size: 10px; line-height: 16px; }
+  .badge.newb { background: var(--new); }
+
+  /* ---------- filters ---------- */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 8px; }
+  .filters input[type=search] { flex: 1; min-width: 220px; }
+  #moreBtn.on { border-color: var(--accent); color: var(--accent); }
+  .more { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .more .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+  .more .grid select { width: 100%; }
+  .more .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 4px; font-size: 13px; }
+  .more .sheet-head { display: none; }
+  .more h4 { margin: 10px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { border-radius: 999px; padding: 3px 10px; font-size: 12px; }
   .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  .count { color: var(--muted); font-size: 12px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; }
+  .active { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .active:empty { display: none; }
+  .fchip { display: inline-flex; gap: 4px; align-items: center; background: var(--accent-soft); color: var(--accent);
+           border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; }
+  .fchip button { border: none; background: none; color: inherit; padding: 0 5px; }
+  .clearall { font-size: 12px; border: none; background: none; color: var(--muted); text-decoration: underline; padding: 2px 4px; }
+  .count { color: var(--muted); font-size: 12px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .count .right { margin-left: auto; display: flex; gap: 6px; }
+  .count .right button { padding: 3px 8px; font-size: 12px; }
+  #toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
+           padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 60; display: none; }
+
+  /* ---------- cards ---------- */
   .list { display: flex; flex-direction: column; gap: 8px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
   .card:hover { border-color: var(--accent); }
-  .card.unseen { border-left: 3px solid var(--warn); }
+  .card.unseen { box-shadow: inset 3px 0 0 var(--alert); }
+  .card.isnew { box-shadow: inset 3px 0 0 var(--new); }
   .card.dim { opacity: .55; }
-  .meta { color: var(--muted); font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .card h2 { font-size: 15px; margin: 4px 0; }
+  .meta { color: var(--muted); font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .meta .src { color: var(--text); font-weight: 600; }
+  .meta .dot { color: var(--line); }
+  .card h2 { font-size: 15px; margin: 5px 0 3px; line-height: 1.35; }
   .orig { color: var(--muted); font-size: 12px; }
-  .card p { margin: 6px 0 0; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2;
+  .card p { margin: 5px 0 0; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2;
             -webkit-box-orient: vertical; overflow: hidden; }
-  .lang { font-weight: 700; text-transform: uppercase; color: var(--accent); }
-  .tag { background: var(--accent-soft); color: var(--accent); border-radius: 4px; padding: 0 6px; font-size: 11px; }
-  .pill { border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; font-size: 11px; }
-  .pill.kind { border-color: var(--accent); color: var(--accent); text-transform: uppercase; font-weight: 700; }
-  .pill.state { border-color: var(--mixed); color: var(--mixed); }
-  .pill.alert { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
-  .pill.off { border-style: dashed; }
-  .pill.kind.social { border-color: var(--mixed); color: var(--mixed); }
-  .pill.video { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 600; }
-  .player { position: relative; padding-top: 56.25%; margin-bottom: 14px; border-radius: 8px; overflow: hidden; background: #000; }
-  .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .quiet { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 7px; font-size: 11px; color: var(--muted); align-items: center; }
+  .quiet .t { color: var(--muted); }
+  .quiet .t::before { content: "#"; opacity: .6; }
+  .lang { font-weight: 700; text-transform: uppercase; color: var(--accent); font-size: 11px; }
+  .kindb { display: inline-flex; gap: 4px; align-items: center; color: var(--accent); font-weight: 700; font-size: 11px;
+           text-transform: uppercase; letter-spacing: .03em; }
+  .flag { display: inline-flex; gap: 3px; align-items: center; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 0 5px; }
+  .flag.alert { background: var(--alert-soft); color: var(--alert); }
+  .flag.new { background: var(--new-soft); color: var(--new); }
+  .flag.media { background: var(--accent-soft); color: var(--accent); }
+  .flag.state { color: var(--mixed); border: 1px solid var(--mixed); }
+  .flag.off { border: 1px dashed var(--line); color: var(--muted); }
+  .rel { display: inline-flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 600; }
+  .rel i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: currentColor; }
+  .rel.gr { color: var(--rel-good); } .rel.nc, .rel.m { color: var(--rel-mid); }
+  .rel.gu, .rel.d, .rel.b { color: var(--rel-bad); }
   .fr { font-size: 11px; font-weight: 600; }
   .fr.attack { color: var(--attack); } .fr.skeptic { color: var(--skeptic); } .fr.mixed { color: var(--mixed); }
   .fr.neutral { display: none; }
+  .mine { color: var(--accent); display: inline-flex; gap: 3px; align-items: center; }
+  .mine.cited { color: var(--rel-good); } .mine.newname { color: var(--new); }
   .star { color: var(--star); }
-  .actions { margin-left: auto; display: flex; gap: 4px; }
-  .actions button { padding: 2px 8px; font-size: 12px; }
+  .actions { margin-left: auto; display: flex; gap: 2px; }
+  .actions button, .actions a button { padding: 2px 6px; font-size: 12px; border-color: transparent; background: none; color: var(--muted); }
+  .actions button:hover { color: var(--text); background: var(--hover); }
+  .card .mynote { margin-top: 6px; font-size: 13px; border-left: 3px solid var(--star); padding-left: 8px; white-space: pre-wrap; }
+  body.compact .card { padding: 8px 12px; }
+  body.compact .card p, body.compact .card .quiet, body.compact .card .orig, body.compact .card .mynote,
+  body.compact .card .snippet { display: none; }
+  body.compact .card h2 { font-size: 14px; margin: 3px 0 0; }
+  .summary { margin: 6px 0 0; font-size: 13px; color: var(--text); background: var(--bg); border-radius: 8px; padding: 7px 10px;
+             -webkit-line-clamp: unset !important; display: block !important; }
+  .summary b { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; margin-right: 6px; }
   .story-sub { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; display: none; }
   .card.open .story-sub { display: block; }
   .story-sub div { font-size: 13px; padding: 3px 0; display: flex; gap: 8px; }
   .story-sub div:hover { color: var(--accent); }
-  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  mark { background: var(--accent-soft); color: var(--accent); border-radius: 2px; padding: 0 1px; }
+  .snippet { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+
+  /* ---------- tables, bars, misc views ---------- */
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: middle; }
   th { color: var(--muted); font-weight: 600; font-size: 12px; }
-  tr.click { cursor: pointer; } tr.click:hover td { background: var(--accent-soft); }
+  tr.click { cursor: pointer; } tr.click:hover td { background: var(--hover); }
   .bar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; min-width: 120px; background: var(--line); }
   .bar span { display: block; height: 100%; }
   .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: 8px 0 12px; flex-wrap: wrap; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
-  #log { display: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-         padding: 10px 14px; margin-top: 12px; font: 12px/1.45 ui-monospace, Menlo, monospace;
-         max-height: 200px; overflow: auto; white-space: pre-wrap; }
   .empty { text-align: center; color: var(--muted); padding: 40px; }
-  .note { color: var(--muted); font-size: 12px; margin: 4px 0 10px; }
-  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(680px, 100%); background: var(--panel);
-            border-left: 1px solid var(--line); transform: translateX(100%); transition: transform .2s;
-            display: flex; flex-direction: column; z-index: 10; }
-  #drawer.open { transform: none; }
-  #drawer .head { padding: 16px 20px; border-bottom: 1px solid var(--line); }
-  #drawer .head h2 { margin: 6px 0; font-size: 17px; }
-  #drawer .body { padding: 16px 20px; overflow: auto; flex: 1; }
-  #dBody { white-space: pre-wrap; }
-  #dPlayer { white-space: normal; }
-  #drawer .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  a { color: var(--accent); }
-  body.static .admin { display: none !important; }
-  .subscribe { position: relative; }
-  .subscribe summary { list-style: none; cursor: pointer; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; background: var(--panel); }
-  .subscribe summary::-webkit-details-marker { display: none; }
-  .subscribe .menu { position: absolute; right: 0; top: 38px; z-index: 20; width: 300px; background: var(--panel);
-    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
-    box-shadow: 0 6px 24px rgba(0,0,0,.18); font-size: 13px; }
-  .subscribe .menu b { margin-top: 4px; }
-  #stale { display: none; background: var(--warn-soft); color: var(--warn); border-bottom: 1px solid var(--warn);
-           padding: 8px 24px; font-size: 13px; }
-  mark { background: var(--accent-soft); color: var(--accent); border-radius: 2px; padding: 0 1px; }
-  .snippet { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
-  #map { height: 540px; border: 1px solid var(--line); border-radius: 8px; z-index: 0; }
+  .note { color: var(--muted); font-size: 12px; margin: 4px 0 10px; max-width: 980px; }
+  #map { height: 540px; border: 1px solid var(--line); border-radius: 10px; z-index: 0; }
   .leaflet-popup-content { font: 13px/1.45 -apple-system, BlinkMacSystemFont, sans-serif; }
   .leaflet-popup-content button { margin-top: 6px; }
-  .pinned { display: inline-flex; gap: 6px; align-items: center; background: var(--accent-soft); color: var(--accent);
-            border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; }
-  .pinned button { border: none; background: none; color: inherit; padding: 0 6px; }
+  .leaflet-container { background: var(--bg); }
   svg.spark { display: block; }
   .card.claim { cursor: default; }
   .claim-summary { -webkit-line-clamp: unset !important; display: block !important; }
@@ -138,9 +203,6 @@
   .bar.small { min-width: 0; width: 90px; height: 8px; display: inline-flex; }
   .crow { display: grid; grid-template-columns: 1fr 90px 40px; gap: 8px; align-items: center; font-size: 12px; }
   .card .btns { display: flex; gap: 6px; flex-wrap: wrap; }
-  @media (max-width: 760px) { .claim-grid { grid-template-columns: 1fr; } }
-  .leaflet-container { background: var(--bg); }
-  /* Timeline */
   .tl-year { font-size: 20px; margin: 26px 0 8px; }
   .tl-year:first-child { margin-top: 6px; }
   .tl-month { border-left: 2px solid var(--line); margin-left: 6px; padding: 2px 0 12px 18px; position: relative; }
@@ -150,136 +212,262 @@
   .tl-mile { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; }
   .tl-mile b { color: var(--accent); font-size: 12px; margin-right: 6px; }
   .tl-row { display: flex; gap: 8px; align-items: baseline; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 13px; }
-  .tl-row:hover { background: var(--accent-soft); }
+  .tl-row:hover { background: var(--hover); }
   .tl-row .n { flex: none; min-width: 74px; color: var(--muted); font-size: 12px; }
   .tl-month details { margin-top: 4px; font-size: 13px; }
   .tl-month summary { cursor: pointer; color: var(--muted); padding: 2px 6px; }
-  .tl-opts { display: inline-flex; gap: 12px; margin-left: 8px; }
-  /* Notes and collections */
-  #dResearch { white-space: normal; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+  .tl-opts { display: inline-flex; gap: 12px; margin-left: 8px; flex-wrap: wrap; }
+  .stages { display: flex; gap: 2px; min-width: 150px; }
+  .stages span { flex: 1; height: 8px; border-radius: 2px; background: var(--line); }
+  .stages span.on { background: var(--accent); }
+  .stages.law span.on { background: var(--rel-good); }
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .panel h3 { margin: 0 0 8px; font-size: 14px; }
+  .ok { color: var(--rel-good); font-weight: 600; } .bad { color: var(--alert); font-weight: 600; } .warnc { color: var(--new); font-weight: 600; }
+  td.err { color: var(--muted); font-size: 12px; max-width: 420px; word-break: break-word; }
+  .pill { border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; font-size: 11px; }
+  .pill.kind { border-color: var(--accent); color: var(--accent); text-transform: uppercase; font-weight: 700; }
+
+  /* ---------- Briefing ---------- */
+  .brief-hero { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+  .brief-hero h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
+  .brief-hero p { margin: 4px 0 0; color: var(--muted); font-size: 14px; max-width: 900px; }
+  .brief-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .brief-col { display: flex; flex-direction: column; gap: 14px; }
+  .bsec h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 13px; text-transform: uppercase;
+             letter-spacing: .06em; color: var(--muted); }
+  .bsec h3 a { margin-left: auto; font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .story-card h2 { font-size: 16px; }
+  .brow { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; cursor: pointer; }
+  .brow:last-child { border-bottom: none; }
+  .brow:hover .t { color: var(--accent); }
+  .brow .d { color: var(--muted); font-size: 12px; min-width: 64px; flex: none; }
+  .kpi { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; }
+  .kpi div { font-size: 12px; color: var(--muted); }
+  .kpi b { display: block; font-size: 20px; color: var(--text); }
+
+  /* ---------- article panel (reading view) ---------- */
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(920px, 100%); background: var(--panel);
+            border-left: 1px solid var(--line); transform: translateX(100%); transition: transform .2s;
+            display: flex; flex-direction: column; z-index: 40; box-shadow: var(--shadow); }
+  #drawer.open { transform: none; }
+  #drawer .head { padding: 16px 24px 12px; border-bottom: 1px solid var(--line); }
+  #drawer .head h2 { margin: 8px 0 4px; font-size: 21px; line-height: 1.3; letter-spacing: -.01em; }
+  #drawer .body { padding: 18px 24px 40px; overflow: auto; flex: 1; }
+  #drawer .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+  #drawer .btns .sep { flex: 1; }
+  #drawer .btns button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .reading { font: var(--read-size)/1.68 Charter, "Iowan Old Style", Georgia, serif; max-width: 70ch; white-space: pre-wrap; }
+  .reading.side { max-width: none; display: grid; grid-template-columns: 1fr 1fr; gap: 26px; white-space: normal; }
+  .reading.side > div { white-space: pre-wrap; }
+  .reading.side h5 { margin: 0 0 8px; font: 600 11px/1.4 -apple-system, sans-serif; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .player { position: relative; padding-top: 56.25%; margin-bottom: 14px; border-radius: 10px; overflow: hidden; background: #000; }
+  .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  audio { width: 100%; margin-bottom: 14px; }
+  #dResearch { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 16px; }
   #dResearch .chips { margin: 6px 0 8px; }
-  #dNote { width: 100%; min-height: 90px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+  #dNote { width: 100%; min-height: 80px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
            border-radius: 6px; padding: 8px; resize: vertical; }
-  .pill.note { border-color: var(--star); color: var(--star); }
-  .pill.coll { border-color: var(--accent); color: var(--accent); }
-  .card .mynote { margin-top: 6px; font-size: 13px; border-left: 3px solid var(--star); padding-left: 8px; white-space: pre-wrap; }
+  #scrim { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 35; display: none; }
+  #scrim.on { display: block; }
+
   @media (prefers-color-scheme: dark) {
     .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
   }
+  @media (max-width: 900px) {
+    .brief-grid, .sig-grid { grid-template-columns: 1fr; }
+    .claim-grid { grid-template-columns: 1fr; }
+  }
+  /* ---------- phone layout ---------- */
   @media (max-width: 760px) {
-    header, main { padding-left: 16px; padding-right: 16px; }
+    header { padding: 12px 16px; }
+    main { padding: 12px 16px 60px; }
+    .hactions { width: 100%; }
     .charts { grid-template-columns: 1fr; }
     .hide-sm { display: none; }
+    .strip { font-size: 12px; gap: 4px 12px; }
+    .strip b { font-size: 14px; }
+    /* tabs scroll sideways instead of wrapping */
+    .nav { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .nav::-webkit-scrollbar { display: none; }
+    .nav .gl { display: none; }
+    .nav .group { border-left: none; padding: 0; }
+    .filters input[type=search] { min-width: 100%; order: -1; }
+    .filters select { flex: 1 1 calc(33% - 6px); min-width: 0; }
+    #moreBtn, #densityBtn { flex: 1; justify-content: center; }
+    /* "More filters" becomes a bottom sheet */
+    .more { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; margin: 0; border-radius: 14px 14px 0 0;
+            max-height: 78vh; overflow: auto; box-shadow: var(--shadow); padding: 0 16px 20px; }
+    .more .sheet-head { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0;
+                        background: var(--panel); padding: 12px 0 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+    .more .grid { grid-template-columns: 1fr; }
+    #drawer { width: 100%; }
+    #drawer .head { padding: 12px 16px 10px; }
+    #drawer .body { padding: 14px 16px 40px; }
+    #drawer .head h2 { font-size: 18px; }
+    .reading.side { grid-template-columns: 1fr; }
+    .actions .lbl { display: none; }
+    .count .right .lbl { display: none; }
+    table { font-size: 12px; }
   }
 </style>
 </head>
 <body class="static">
 <div id="stale" role="status"></div>
 <header>
-  <h1>Havana Syndrome Monitor <div class="sub" id="lastRun">Multilingual news, video and primary sources on AHIs and directed energy · read-only public copy</div></h1>
-  <label class="sub admin"><input type="checkbox" id="useGdelt" checked> include GDELT</label>
-  <button class="primary admin" id="refreshBtn">Scrape now</button>
-  <select class="admin" id="exportSel" title="Export the articles in the current filter">
-    <option value="">Export…</option>
-    <option value="digest">Briefing digest (.md)</option>
-    <option value="csv">Spreadsheet (.csv)</option>
-    <option value="ris">Zotero / EndNote (.ris)</option>
-    <option value="bib">BibTeX (.bib)</option>
-  </select>
-  <select id="savedDigests" title="Weekly digests saved in the digests/ folder"><option value="">Weekly digests…</option></select>
-  <details class="subscribe">
-    <summary>Subscribe</summary>
-    <div class="menu">
-      <b>RSS feeds</b> <span class="sub">— paste into any feed reader</span>
-      <a href="feed.xml" target="_blank" rel="noopener">New stories</a>
-      <a href="alerts.xml" target="_blank" rel="noopener">Alerts only</a>
-      <a href="digests.xml" target="_blank" rel="noopener">Weekly digest</a>
-      <b>By email</b> <span class="sub">— through Blogtrottr, a free RSS-to-email service (you sign up there)</span>
-      <a id="emailDigest" target="_blank" rel="noopener">Email me the weekly digest</a>
-      <a id="emailAlerts" target="_blank" rel="noopener">Email me alerts</a>
-    </div>
-  </details>
+  <div class="brand">
+    <h1>Havana Syndrome Monitor</h1>
+    <div class="sub" id="lastRun">Multilingual news, video and primary sources on AHIs and directed energy · read-only public copy</div>
+  </div>
+  <div class="hactions">
+    <button class="primary admin" id="refreshBtn">Scrape now</button>
+    <details class="menu admin" id="scrapeOpts"><summary title="Scrape options">⋯</summary>
+      <div class="pop"><label><input type="checkbox" id="useGdelt" checked> Include GDELT in “Scrape now” (slow, rate-limited)</label></div></details>
+    <details class="menu admin" id="exportMenu"><summary>Export</summary>
+      <div class="pop">
+        <span class="sub">The articles in the current filter, in the order shown</span>
+        <button data-export="digest">Briefing digest (.md)</button>
+        <button data-export="csv">Spreadsheet (.csv)</button>
+        <button data-export="ris">Zotero / EndNote (.ris)</button>
+        <button data-export="bib">BibTeX (.bib)</button>
+      </div></details>
+    <select id="savedDigests" title="Weekly digests"><option value="">Weekly digests…</option></select>
+    <details class="menu" id="subMenu"><summary>Subscribe</summary>
+      <div class="pop">
+        <b>RSS feeds</b> <span class="sub">Paste into any feed reader</span>
+        <a href="feed.xml" target="_blank" rel="noopener">New stories</a>
+        <a href="alerts.xml" target="_blank" rel="noopener">Alerts only</a>
+        <a href="digests.xml" target="_blank" rel="noopener">Weekly digest</a>
+        <b>By email</b> <span class="sub">Through Blogtrottr, a free RSS-to-email service (you sign up there)</span>
+        <a id="emailDigest" target="_blank" rel="noopener">Email me the weekly digest</a>
+        <a id="emailAlerts" target="_blank" rel="noopener">Email me alerts</a>
+      </div></details>
+  </div>
 </header>
 <main>
   <div id="log"></div>
-  <div class="stats">
-    <div class="stat"><b id="sTotal">–</b><span>articles</span></div>
-    <div class="stat"><b id="sStories">–</b><span>distinct stories</span></div>
-    <div class="stat"><b id="sWeek">–</b><span>published in last 7 days</span></div>
-    <div class="stat"><b id="sLangs">–</b><span>languages</span></div>
-    <div class="stat"><b id="sCountries">–</b><span>source countries</span></div>
-    <div class="stat"><b id="sPrimary">–</b><span>primary sources (government, Congress, court, research, documents)</span></div>
+  <div class="strip">
+    <span><b id="sTotal">–</b>articles</span>
+    <span><b id="sStories">–</b>stories</span>
+    <span><b id="sWeek">–</b>this week</span>
+    <span><b id="sLangs">–</b>languages</span>
+    <span><b id="sCountries">–</b>countries</span>
+    <span title="Government, Congress, court, research and FOIA documents"><b id="sPrimary">–</b>primary sources</span>
+    <a href="#" class="newlink" id="sNewCard" title="Show only these"><b id="sNew">–</b><span id="sNewLabel">new since your last visit</span></a>
+    <span class="grow"></span>
+    <button class="ghost" id="shareBtn" title="Copy a link to exactly this view (tab, filters, search)"><svg class="ic" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Share this view</button>
+    <button class="ghost" id="chartsToggle" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Charts</button>
   </div>
-  <div class="charts">
+  <div class="charts" id="chartsBox" hidden>
     <div class="chart"><h3>Articles per week (current filter)</h3><canvas id="weekChart"></canvas></div>
     <div class="chart"><h3>By language (current filter)</h3><canvas id="langChart"></canvas></div>
   </div>
 
-  <div class="tabs">
-    <button data-view="articles" class="on">Articles</button>
-    <button data-view="stories">Stories</button>
-    <button data-view="timeline">Timeline</button>
-    <button data-view="countries">Countries &amp; framing</button>
-    <button data-view="claims">Claims</button>
-    <button data-view="map">Map</button>
-    <button data-view="people">People &amp; orgs</button>
-    <button data-view="alerts">Alerts <span class="badge" id="alertBadge" hidden></span></button>
-    <button data-view="collections" class="admin">My collections</button>
-  </div>
+  <nav class="nav" id="nav" aria-label="Views">
+    <div class="group"><span class="gl">&nbsp;</span><div class="tabs">
+      <button data-view="briefing">Briefing</button></div></div>
+    <div class="group"><span class="gl">Read</span><div class="tabs">
+      <button data-view="articles">Articles</button>
+      <button data-view="stories">Stories</button>
+      <button data-view="timeline">Timeline</button></div></div>
+    <div class="group"><span class="gl">Analyze</span><div class="tabs">
+      <button data-view="countries">Countries &amp; framing</button>
+      <button data-view="claims">Claims</button>
+      <button data-view="map">Map</button>
+      <button data-view="people">People &amp; orgs</button>
+      <button data-view="signals">Signals <span class="badge" id="spikeBadge" hidden></span></button></div></div>
+    <div class="group"><span class="gl">Track</span><div class="tabs">
+      <button data-view="bills">Bills</button>
+      <button data-view="alerts">Alerts <span class="badge" id="alertBadge" hidden></span></button></div></div>
+    <div class="group admin"><span class="gl">Mine</span><div class="tabs">
+      <button data-view="collections">Collections</button>
+      <button data-view="health">Source health <span class="badge" id="healthBadge" hidden></span></button></div></div>
+  </nav>
 
-  <div class="filters">
-    <input type="search" id="q" placeholder="Full-text search (any language; try: gabbard OR &quot;unit 29155&quot;)…">
-    <select id="kind">
-      <option value="">All source types</option><option value="news">News</option>
-      <option value="government">Government</option><option value="congress">Congress (bills, hearings, record)</option>
-      <option value="court">Court cases</option><option value="documents">Documents (FOIA, declassified)</option>
-      <option value="research">Research (PubMed)</option>
-      <option value="social">Social (Telegram, Reddit)</option>
-      <option value="video">▶ Video</option>
-    </select>
-    <select id="lang"><option value="">All languages</option></select>
-    <select id="country"><option value="">All countries</option></select>
-    <select id="source" class="hide-sm"><option value="">All sources</option></select>
-    <select id="range">
-      <option value="">Any date</option><option value="7">Last 7 days</option>
-      <option value="30">Last 30 days</option><option value="90">Last 90 days</option>
-      <option value="365">Last year</option>
-    </select>
-    <select id="coll" class="admin"><option value="">All items</option></select>
-    <label class="admin"><input type="checkbox" id="starred"> starred</label>
-    <label><input type="checkbox" id="foreign"> non-English</label>
-    <label><input type="checkbox" id="stateOnly"> state media</label>
-    <label><input type="checkbox" id="showOff"> include off-topic</label>
-    <label><input type="checkbox" id="showOrig"> original titles</label>
+  <div id="filterArea">
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search everything, any language (try: gabbard OR &quot;unit 29155&quot;)…">
+      <select id="kind" aria-label="Source type">
+        <option value="">All source types</option><option value="news">News</option>
+        <option value="government">Government</option><option value="congress">Congress (bills, hearings, record)</option>
+        <option value="court">Court cases</option><option value="documents">Documents (FOIA, declassified)</option>
+        <option value="research">Research</option>
+        <option value="social">Social (Telegram, Reddit, Bluesky, Mastodon)</option>
+        <option value="podcast">Podcasts</option>
+        <option value="video">Video</option>
+      </select>
+      <select id="lang" aria-label="Language"><option value="">All languages</option></select>
+      <select id="range" aria-label="Date">
+        <option value="">Any date</option><option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option><option value="90">Last 90 days</option>
+        <option value="365">Last year</option>
+      </select>
+      <button id="densityBtn" title="Switch between compact and comfortable cards">Compact</button>
+      <button id="moreBtn" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>More filters <span class="badge" id="moreCount" hidden></span></button>
+    </div>
+    <div class="more" id="morePanel" hidden>
+      <div class="sheet-head"><b>More filters</b><button id="moreClose" class="primary">Done</button></div>
+      <div class="grid">
+        <select id="country" aria-label="Country"><option value="">All countries</option></select>
+        <select id="source" aria-label="Source"><option value="">All sources</option></select>
+        <select id="rel" aria-label="Reliability" title="Outlet reliability, from Wikipedia's community-maintained perennial sources list">
+          <option value="">Any outlet reliability</option><option value="gr">Generally reliable outlets</option>
+          <option value="nc">No consensus or varies by topic</option><option value="bad">Unreliable or deprecated outlets</option>
+          <option value="none">Outlet not rated</option></select>
+        <select id="coll" class="admin" aria-label="Collection"><option value="">All items</option></select>
+        <select id="comp" class="admin" aria-label="Compendium" title="Compared with your research compendium">
+          <option value="">Compendium: any</option><option value="cited">Cited in my compendium</option>
+          <option value="newer">Newer than my compendium, not cited</option>
+          <option value="names">Names my compendium doesn't mention</option></select>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="newOnly"> New since my last visit</label>
+        <label class="admin"><input type="checkbox" id="starred"> Starred</label>
+        <label><input type="checkbox" id="foreign"> Non-English only</label>
+        <label><input type="checkbox" id="stateOnly"> State media only</label>
+        <label><input type="checkbox" id="showOff"> Include off-topic</label>
+        <label><input type="checkbox" id="showOrig"> Show original titles</label>
+      </div>
+      <h4>Topics</h4>
+      <div class="chips" id="tagChips"></div>
+    </div>
+    <div class="active" id="activeChips"></div>
   </div>
-  <div class="chips" id="tagChips"></div>
   <div class="count" id="count"></div>
   <div id="view"></div>
 </main>
 
-<aside id="drawer">
+<div id="scrim"></div>
+<aside id="drawer" aria-label="Article">
   <div class="head">
     <div class="meta" id="dMeta"></div>
     <h2 id="dTitle"></h2>
     <div class="sub" id="dOrig"></div>
     <div class="btns">
-      <a id="dLink" target="_blank" rel="noopener"><button>Open original ↗</button></a>
-      <a id="dArchive" target="_blank" rel="noopener"><button>Archived copy ↗</button></a>
+      <a id="dLink" target="_blank" rel="noopener"><button><svg class="ic" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5H5V6h5"/></svg>Open original</button></a>
+      <a id="dArchive" target="_blank" rel="noopener"><button><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11h14V8M10 12h4"/></svg>Archived copy</button></a>
       <button class="admin" id="dTranslate">Translate full text</button>
+      <button id="dSide" title="Original and English side by side">Side by side</button>
       <button class="admin" id="dToggle">Show original text</button>
+      <span class="sep"></span>
+      <button id="dSmaller" title="Smaller text" aria-label="Smaller text">A−</button>
+      <button id="dBigger" title="Larger text" aria-label="Larger text">A+</button>
+      <button id="dShare" title="Copy a link to this article"><svg class="ic" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
       <button class="admin" id="dOff">Mark off-topic</button>
-      <button id="dClose" style="margin-left:auto">Close</button>
+      <button id="dClose" class="primary">Close</button>
     </div>
   </div>
-  <div class="body"><div id="dPlayer"></div>
+  <div class="body"><div id="dPlayer"></div><div id="dSummary"></div>
     <div id="dResearch" class="admin">
-      <div class="sub">My collections <span class="sub">— click to add or remove</span></div>
+      <div class="sub">My collections · click to add or remove</div>
       <div class="chips" id="dColls"></div>
       <div class="sub" style="display:flex;justify-content:space-between"><span>My note (private: never published)</span><span id="dNoteState"></span></div>
       <textarea id="dNote" placeholder="Why this matters, quotes to use, how it fits your compendium…"></textarea>
     </div>
-    <div id="dBody"></div></div>
+    <div id="dBody" class="reading"></div></div>
 </aside>
+<div id="toast" role="status"></div>
 
 <form id="digestForm" method="post" action="/api/digest" style="display:none"><input name="ids"></form>
 <form id="exportForm" method="post" action="/api/export" style="display:none"><input name="ids"><input name="format"></form>
@@ -294,13 +482,51 @@ const PLACES = {"Beijing": {"lat": 39.9, "lon": 116.4, "note": "Reported cases"}
 const ENTITIES = ["Tulsi Gabbard (DNI)", "GRU Unit 29155", "GRU (Russian military intelligence)", "CIA", "ODNI", "FBI", "NSA", "Pentagon / DoD", "State Department", "NIH", "National Academies", "Walter Reed", "Kremlin / Dmitry Peskov", "Greg Edgreen (DIA)", "Mark Zaid (attorney)", "David Relman", "Christo Grozev", "The Insider", "60 Minutes", "Marc Polymeropoulos", "William Burns", "Rick Crawford (Rep.)", "Michael Beck", "James Woolsey", "Kamala Harris", "Donald Trump", "Mark Carney", "Allan Frey", "Homeland Security Investigations", "Peter Highnam", "Robert Baloh / Robert Bartholomew"];
 const CLAIMS = [{"id": "device_purchase", "name": "US bought a pulsed-RF device", "summary": "Homeland Security Investigations covertly bought a backpack-sized pulsed radio-frequency device with Russian-origin parts in late 2024; the Pentagon has tested it (first reported by CNN, Jan 2026)."}, {"id": "device_tests", "name": "Device caused injuries in animal tests", "summary": "60 Minutes reported (Mar 2026) that more than a year of animal testing of the purchased device produced injuries similar to AHIs."}, {"id": "norway_selftest", "name": "Norwegian scientist\u0027s self-test", "summary": "A Norwegian government scientist tested a microwave-pulse device on himself in 2024 and developed AHI-like symptoms (Washington Post, Feb 2026)."}, {"id": "gru_29155", "name": "Russia\u0027s GRU Unit 29155 was behind attacks", "summary": "The Insider, 60 Minutes and Der Spiegel linked incidents to the Russian military intelligence sabotage unit 29155 (Mar 2024)."}, {"id": "frankfurt_2014", "name": "Frankfurt 2014 incident predates Havana", "summary": "A US consulate employee in Frankfurt was knocked unconscious in Nov 2014, later linked to GRU operatives in reporting."}, {"id": "ic_unlikely", "name": "Intelligence agencies: foreign attack \"very unlikely\"", "summary": "The 2023 and Jan 2025 intelligence assessments judged it very unlikely a foreign adversary was responsible."}, {"id": "gabbard_rescind", "name": "Gabbard rescinded the skeptical assessments", "summary": "DNI Tulsi Gabbard rescinded the 2023 and 2025 intelligence assessments in June 2026, saying they suppressed analysis."}, {"id": "nih_no_injury", "name": "NIH found no detectable brain injury", "summary": "NIH\u0027s 2024 studies in JAMA found no MRI-detectable brain injury or biomarker differences in AHI patients."}, {"id": "nasem_rf", "name": "National Academies: pulsed RF \"most plausible\"", "summary": "The National Academies (Dec 2020) found directed, pulsed radio-frequency energy the most plausible mechanism for distinctive early cases."}, {"id": "psychogenic", "name": "Mass psychogenic illness explains cases", "summary": "Skeptics, including Bartholomew and Baloh and the FBI\u0027s behavioral analysts, argue symptoms spread psychologically rather than from a weapon."}, {"id": "crickets", "name": "The Havana sounds were crickets", "summary": "Researchers matched the 2017 Havana recordings to the Indies short-tailed cricket (2019)."}, {"id": "payments", "name": "Pentagon paid ~$3M in HAVANA Act compensation", "summary": "The Pentagon made its first HAVANA Act payments, nearly $3 million, in July 2026."}, {"id": "discombobulator", "name": "\"Discombobulator\" used in Maduro raid", "summary": "Trump said a secret \"discombobulator\" was used in the Jan 2026 raid that captured Maduro; no official description was given."}];
 const CLAIM_NAME = Object.fromEntries(CLAIMS.map(c => [c.id, c.name]));
-const PIN_ICON = { place: "📍", entity: "👤", claim: "⚖️" };
+// One consistent icon set (simple line icons) instead of emoji.
+const ICONS = {
+  pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  scale: '<path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  note: '<path d="M5 3h10l4 4v14H5z"/><path d="M9 12h6M9 16h6"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>',
+  spark: '<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>',
+  audio: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1"/><rect x="17" y="14" width="4" height="6" rx="1"/>',
+  play: '<path d="M7 5l12 7-12 7z"/>',
+  star: '<path d="M12 3l2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.3l1.1-6.2L3 9.7l6.2-.9z"/>',
+  archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11h14V8M10 12h4"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  hide: '<path d="M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3 3.6M6.6 6.6C3.9 8.3 2.5 12 2.5 12s3.5 6 9.5 6c1.6 0 3-.4 4.3-1"/>',
+  doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/>',
+  gov: '<path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10M2 10l10-6 10 6z"/>',
+  court: '<path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z"/>',
+  flask: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
+  chat: '<path d="M4 5h16v11H8l-4 4z"/>',
+  capitol: '<path d="M3 21h18M6 21v-8M18 21v-8M10 21v-8M14 21v-8M4 13h16M6 13a6 6 0 0 1 12 0M12 4v3"/>',
+};
+const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
+const KIND_ICON = { government: "gov", congress: "capitol", court: "court", research: "flask", documents: "doc", social: "chat", podcast: "audio" };
+const PIN_ICON = { place: "pin", entity: "user", claim: "scale" };
 const MILESTONES = [{"date": "2026-09-01", "label": "Sep 2026", "precision": "month", "text": "Walter Reed study in *Frontiers in Neurology*: 40 AHI patients improved on a cognitive test battery after BrainHQ training (uncontrolled, retrospective; [press release](https://www.globenewswire.com/news-release/2026/09/29/3370416/0/en/pentagon-pivots-on-havana-syndrome-with-re-branding-compensation-and-a-new-study.html) from the product\u0027s maker)."}, {"date": "2026-07-10", "label": "Jul 10, 2026", "precision": "day", "text": "Pentagon pays first HAVANA Act compensation (nearly $3M) and renames its team the Directed Energy Bio-Effects CFT ([DefenseScoop](https://defensescoop.com/2026/07/13/havana-syndrome-payments-directed-energy-bio-effects/))."}, {"date": "2026-06-01", "label": "Jun 2026", "precision": "month", "text": "DNI Gabbard rescinds the 2023 and 2025 IC assessments, citing suppressed analysis and a flawed medical study ([CNN via CP24](https://www.cp24.com/news/world/2026/06/12/gabbard-rescinds-biden-era-intel-assessments-that-were-skeptical-about-havana-syndrome/))."}, {"date": "2026-03-01", "label": "Mar 2026", "precision": "month", "text": "60 Minutes reports the device was bought from a \"Russian criminal network\" for about $15M, can reach targets \"hundreds of feet away,\" and produced similar injuries in animal tests (anonymous sources; [Defense Post](https://thedefensepost.com/2026/03/12/us-havana-syndrome-weapon/amp/))."}, {"date": "2026-02-01", "label": "Feb 2026", "precision": "month", "text": "AHI team moves from Pentagon Policy to Research \u0026 Engineering, focused on treatments and countermeasures ([DefenseScoop](https://defensescoop.com/2026/02/24/havana-syndrome-defense-department-anomalous-health-incidents-ahi-cft/))."}, {"date": "2026-02-01", "label": "Feb 2026", "precision": "month", "text": "Washington Post: a Norwegian government scientist self-tested a microwave-pulse device in 2024 and developed AHI-like symptoms ([Stars and Stripes](https://www.stripes.com/theaters/europe/2026-02-14/pentagon-havana-syndrome-experiment-norway-20740362.html))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "Trump says a secret \"discombobulator\" was used in the raid that captured Maduro; no official description given ([Newsweek](https://newsweek.com/the-discombobulator-does-trumps-secret-weapon-really-exist-11416698))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "CNN reveals Homeland Security Investigations bought a pulsed-RF device with Russian parts in late 2024; the Pentagon has been testing it ([CBS News](https://www.cbsnews.com/news/havana-syndrome-device-what-to-know/))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "Michael Beck, reportedly among the first to report symptoms, dies at 65."}, {"date": "2025-01-10", "label": "Jan 10, 2025", "precision": "day", "text": "Updated IC assessment: most agencies still say \"very unlikely\"; two shift on foreign capability ([ODNI](https://archive.dni.gov/files/ODNI/documents/assessments/NIC-Unclassified-ICA-Updated-Assessment-AHI-December2024.pdf))."}, {"date": "2024-12-01", "label": "Dec 2024", "precision": "month", "text": "House Intelligence subcommittee interim report says the 2023 assessment lacked analytic integrity ([HPSCI](https://intelligence.house.gov/2024/12/05/crawford-cia-subcommittee-release-interim-report-on-havana-syndrome))."}, {"date": "2024-10-01", "label": "Late 2024", "precision": "season", "text": "US covertly acquires the pulsed-RF device. Pentagon and White House officials visit Norway about the self-test."}, {"date": "2024-09-01", "label": "Sep 2024", "precision": "month", "text": "NIH ends its AHI research protocol after a coercion allegation (the CIA denied it)."}, {"date": "2024-07-01", "label": "Jul 2024", "precision": "month", "text": "GAO reports 334 people qualified for DoD AHI health care."}, {"date": "2024-03-01", "label": "Mar 2024", "precision": "month", "text": "NIH studies published in *JAMA*: no MRI-detectable brain injury. The Insider / 60 Minutes / Der Spiegel link GRU Unit 29155 to incidents."}, {"date": "2023-03-01", "label": "Mar 1, 2023", "precision": "day", "text": "IC assessment: five of seven agencies judge foreign involvement \"very unlikely.\""}, {"date": "2022-02-01", "label": "Feb 2022", "precision": "month", "text": "IC Experts Panel: pulsed electromagnetic energy and ultrasound plausible for \"core\" cases. JASON report released."}, {"date": "2022-01-01", "label": "Jan 2022", "precision": "month", "text": "CIA interim report on about 1,000 cases: most explained by other causes; about two dozen unresolved."}, {"date": "2021-10-08", "label": "Oct 8, 2021", "precision": "day", "text": "HAVANA Act signed into law."}, {"date": "2021-01-01", "label": "2021", "precision": "year", "text": "Clusters in Vienna (dozens), Berlin, Bogot\u00e1, Hanoi (before VP Harris\u0027s visit), and India (CIA Director Burns\u0027s trip). Over 200 reported cases by September."}, {"date": "2020-12-01", "label": "Dec 2020", "precision": "month", "text": "National Academies report names directed, pulsed RF energy the most plausible mechanism."}, {"date": "2020-11-01", "label": "Nov 2020", "precision": "month", "text": "Incident reported on the Ellipse near the White House."}, {"date": "2019-01-01", "label": "2019", "precision": "year", "text": "Recordings attributed to the Indies short-tailed cricket; second Penn imaging study (JAMA); CDC report finds no mechanism."}, {"date": "2018-01-01", "label": "2018", "precision": "year", "text": "First Penn study (JAMA, 21 patients) describes a concussion-like syndrome. Cases in Guangzhou, China. FBI finds no evidence of a sonic attack."}, {"date": "2017-08-01", "label": "Aug\u2013Oct 2017", "precision": "month", "text": "Cases made public. US expels Cuban diplomats and cuts embassy staff."}, {"date": "2016-10-01", "label": "Late 2016", "precision": "season", "text": "First US and Canadian diplomats in Havana report sounds, pressure, and illness."}];
 const PRIMARY = ["government", "congress", "court", "research", "documents"];
 const KIND_LABEL = { government: "government", congress: "Congress", court: "court", research: "research", documents: "document" };
 let COLLS = [];   // [{id, name, n}] — local dashboard only
+const REL_SHORT = { gr: "reliable", nc: "no consensus", m: "rating varies", gu: "unreliable", d: "deprecated", b: "blacklisted" };
+let BILLS = null, WIKI = null, SIGNALS = null, HEALTH = null, COMP = null;
+const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T01:18:30.198554+00:00") : `/api/${name}`;
+// "New since your last visit": the visit before this one stays the baseline for this whole browser session.
+let lastVisit = null;
+try {
+  lastVisit = sessionStorage.getItem("hsm_baseline");
+  if (lastVisit === null) {
+    lastVisit = localStorage.getItem("hsm_last_visit") || "";
+    sessionStorage.setItem("hsm_baseline", lastVisit);
+  }
+  localStorage.setItem("hsm_last_visit", new Date().toISOString());
+} catch (e) { lastVisit = ""; }
+const isNew = a => !!lastVisit && (a.added_at || "") > lastVisit;
 const collName = id => COLLS.find(c => c.id === id)?.name || "";
-let all = [], filtered = [], activeTags = new Set(), charts = {}, view = "articles";
+let all = [], filtered = [], activeTags = new Set(), charts = {}, view = "briefing";
 let hits = null;             // full-text search results: Map id -> snippet, or null when not searching
 let pin = { place: "", entity: "", claim: "", stance: "" };  // filters set from the Map, People and Claims views
 const $ = id => document.getElementById(id);
@@ -316,17 +542,22 @@ const fillSelect = (id, label, counts, name = k => k) => {
   $(id).value = cur;
 };
 
+async function fetchJson(name) {
+  try { const r = await fetch(dataUrl(name)); return r.ok ? await r.json() : (name === "wiki" ? null : []); }
+  catch (e) { return name === "wiki" ? null : []; }
+}
+
 async function loadCollections() {
   COLLS = await (await fetch("/api/collections")).json();
   const cur = $("coll").value;
-  $("coll").innerHTML = `<option value="">All items</option><option value="notes">📝 Has my note (${all.filter(a => a.note).length})</option>` +
-    COLLS.map(c => `<option value="c:${c.id}">📁 ${esc(c.name)} (${c.n})</option>`).join("");
+  $("coll").innerHTML = `<option value="">All items</option><option value="notes">Has my note (${all.filter(a => a.note).length})</option>` +
+    COLLS.map(c => `<option value="c:${c.id}">Collection: ${esc(c.name)} (${c.n})</option>`).join("");
   $("coll").value = [...$("coll").options].some(o => o.value === cur) ? cur : "";
 }
 
 async function load() {
   // The public copy's data URL carries the publish time, so browsers never pair a new page with stale cached data.
-  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T00:38:16.551620+00:00") : "/api/articles")).json();
+  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T01:18:30.198554+00:00") : "/api/articles")).json();
   const on = all.filter(a => !a.offtopic);
   fillSelect("lang", "All languages", countBy(on, a => a.lang), l => LANGS[l] || l);
   fillSelect("country", "All countries", countBy(on, a => a.country));
@@ -338,6 +569,10 @@ async function load() {
   $("sLangs").textContent = new Set(on.map(a => a.lang)).size;
   $("sCountries").textContent = new Set(on.map(a => a.country).filter(Boolean)).size;
   $("sPrimary").textContent = on.filter(a => PRIMARY.includes(a.kind)).length;
+  $("sNew").textContent = lastVisit ? on.filter(isNew).length : "–";
+  $("sNewLabel").textContent = lastVisit ? `new since your last visit (${new Date(lastVisit).toLocaleDateString()})` : "new since your last visit (first visit)";
+  if (!SIGNALS) fetchJson("signals").then(d => { SIGNALS = d; $("spikeBadge").hidden = !d.length; $("spikeBadge").textContent = d.length; });
+  if (!STATIC && !HEALTH) fetchJson("health").then(d => { HEALTH = d; const bad = d.filter(h => h.fails >= 2).length; $("healthBadge").hidden = !bad; $("healthBadge").textContent = bad; });
   if (!STATIC) await loadCollections();
   const unseen = all.filter(a => a.alert && !a.alert_seen).length;
   $("alertBadge").hidden = !unseen; $("alertBadge").textContent = unseen;
@@ -356,10 +591,20 @@ function applyFilters() {
     (!lang || a.lang === lang) && (!src || a.source === src) && (!kind || (kind === "video" ? a.video : a.kind === kind)) &&
     (!country || a.country === country) && (!cutoff || new Date(dateOf(a)) > cutoff) &&
     (!$("starred").checked || a.starred) && (!$("foreign").checked || a.lang !== "en") &&
-    (!$("stateOnly").checked || a.state_media) && collOk(a) &&
+    (!$("stateOnly").checked || a.state_media) && collOk(a) && relOk(a) && compOk(a) &&
+    (!$("newOnly").checked || isNew(a)) &&
     [...activeTags].every(t => a.tags.includes(t)));
 }
 
+function relOk(a) {
+  const r = $("rel").value; if (!r) return true;
+  const st = a.reliability?.status;
+  return r === "none" ? !st : r === "bad" ? ["gu", "d", "b"].includes(st) : r === "nc" ? ["nc", "m"].includes(st) : st === r;
+}
+function compOk(a) {
+  const c = STATIC ? "" : $("comp").value; if (!c) return true;
+  return c === "cited" ? a.cited : c === "newer" ? a.newer_than_compendium : (a.new_names || []).length > 0;
+}
 function collOk(a) {
   const c = STATIC ? "" : $("coll").value;
   if (!c) return true;
@@ -373,26 +618,126 @@ function render() {
   $("tagChips").innerHTML = TAGS.map(t => {
     const n = filtered.filter(a => a.tags.includes(t)).length;
     return `<button class="chip ${activeTags.has(t) ? "on" : ""}" data-tag="${esc(t)}">${esc(t)} · ${n}</button>`;
-  }).join("") + ["place", "entity", "claim"].filter(k => pin[k]).map(k =>
-    `<span class="pinned">${PIN_ICON[k]} ${esc(k === "claim" ? CLAIM_NAME[pin.claim] +
-      (pin.stance ? (pin.stance === "disputes" ? " · doubt or denial" : " · reporting") : "") : pin[k])}<button data-unpin="${k}" title="Remove filter">✕</button></span>`).join("");
-  ({ articles: renderArticles, stories: renderStories, timeline: renderTimeline, countries: renderCountries, claims: renderClaims,
-     map: renderMap, people: renderPeople, alerts: renderAlerts, collections: renderCollections })[view]();
-  drawCharts();
+  }).join("");
+  renderActive();
+  $("filterArea").hidden = NO_FILTER_VIEWS.includes(view);
+  ({ briefing: renderBriefing, articles: renderArticles, stories: renderStories, timeline: renderTimeline, countries: renderCountries, claims: renderClaims,
+     map: renderMap, people: renderPeople, alerts: renderAlerts, collections: renderCollections,
+     bills: renderBills, signals: renderSignals, health: renderHealth })[view]();
+  if (!$("chartsBox").hidden) drawCharts();
+  writeHash();
 }
+
+// ---------- active filter chips and the "More filters" panel ----------
+const NO_FILTER_VIEWS = ["briefing", "bills", "signals", "collections", "health"];
+const SELECT_LABEL = { kind: "Type", lang: "Language", range: "Date", country: "Country", source: "Source", rel: "Reliability", coll: "", comp: "" };
+const CHECK_LABEL = { newOnly: "New since last visit", starred: "Starred", foreign: "Non-English", stateOnly: "State media", showOff: "Including off-topic" };
+const MORE_IDS = ["country", "source", "rel", "coll", "comp", "newOnly", "starred", "foreign", "stateOnly", "showOff"];
+function activeFilters() {
+  const out = [];
+  if ($("q").value.trim()) out.push({ key: "q", label: `Search: “${$("q").value.trim()}”` });
+  Object.keys(SELECT_LABEL).forEach(id => {
+    const el = $(id); if (!el.value || (STATIC && (id === "coll" || id === "comp"))) return;
+    const text = el.options[el.selectedIndex]?.text.replace(/\s*\(\d+\)$/, "") || el.value;
+    out.push({ key: id, label: SELECT_LABEL[id] ? `${SELECT_LABEL[id]}: ${text}` : text });
+  });
+  Object.keys(CHECK_LABEL).forEach(id => $(id).checked && out.push({ key: id, label: CHECK_LABEL[id] }));
+  activeTags.forEach(t => out.push({ key: "tag:" + t, label: "#" + t }));
+  ["place", "entity", "claim"].filter(k => pin[k]).forEach(k => out.push({ key: "pin:" + k, icon: PIN_ICON[k],
+    label: k === "claim" ? CLAIM_NAME[pin.claim] + (pin.stance ? (pin.stance === "disputes" ? " · doubt or denial" : " · reporting") : "") : pin[k] }));
+  return out;
+}
+function renderActive() {
+  const f = activeFilters();
+  $("activeChips").innerHTML = f.map(x => `<span class="fchip">${x.icon ? icon(x.icon) : ""}${esc(x.label)}<button data-clear="${esc(x.key)}" aria-label="Remove filter">✕</button></span>`).join("") +
+    (f.length > 1 ? `<button class="clearall" data-clear="*">Clear all</button>` : "");
+  const inMore = MORE_IDS.filter(id => $(id).type === "checkbox" ? $(id).checked : $(id).value).length + activeTags.size;
+  $("moreCount").hidden = !inMore; $("moreCount").textContent = inMore;
+}
+function clearFilter(key) {
+  if (key === "*") { ["q", "kind", "lang", "range", "country", "source", "rel", "coll", "comp"].forEach(id => $(id).value = "");
+    Object.keys(CHECK_LABEL).forEach(id => $(id).checked = false); activeTags.clear(); pin = { place: "", entity: "", claim: "", stance: "" }; hits = null; }
+  else if (key === "q") { $("q").value = ""; hits = null; }
+  else if (key.startsWith("tag:")) activeTags.delete(key.slice(4));
+  else if (key.startsWith("pin:")) { pin[key.slice(4)] = ""; if (key === "pin:claim") pin.stance = ""; }
+  else if ($(key).type === "checkbox") $(key).checked = false;
+  else $(key).value = "";
+  render();
+}
+$("activeChips").addEventListener("click", e => { const b = e.target.closest("[data-clear]"); if (b) clearFilter(b.dataset.clear); });
+function setMore(open) {
+  $("morePanel").hidden = !open; $("moreBtn").classList.toggle("on", open); $("moreBtn").setAttribute("aria-expanded", open);
+  $("scrim").classList.toggle("on", open && innerWidth <= 760);
+}
+$("moreBtn").onclick = () => setMore($("morePanel").hidden);
+$("moreClose").onclick = () => setMore(false);
+
+// ---------- compact / comfortable cards ----------
+function setDensity(compact) {
+  document.body.classList.toggle("compact", compact);
+  $("densityBtn").textContent = compact ? "Comfortable" : "Compact";
+  try { localStorage.setItem("hsm_density", compact ? "compact" : "comfortable"); } catch (e) {}
+}
+try { setDensity(localStorage.getItem("hsm_density") === "compact"); } catch (e) { setDensity(false); }
+$("densityBtn").onclick = () => setDensity(!document.body.classList.contains("compact"));
+
+// ---------- charts on demand ----------
+$("chartsToggle").onclick = () => {
+  const open = $("chartsBox").hidden; $("chartsBox").hidden = !open; $("chartsToggle").setAttribute("aria-expanded", open);
+  if (open) drawCharts();
+};
+
+// ---------- shareable links: the view, filters, search and open article live in the address ----------
+const HASH_SELECTS = { kind: "kind", lang: "lang", range: "range", country: "country", source: "src", rel: "rel" };
+const HASH_CHECKS = { newOnly: "new", foreign: "foreign", stateOnly: "state", showOff: "off", showOrig: "orig" };
+let suppressHash = false;
+function writeHash() {
+  if (suppressHash) return;
+  const p = new URLSearchParams();
+  if (view !== "briefing") p.set("v", view);
+  const q = $("q").value.trim(); if (q) p.set("q", q);
+  Object.entries(HASH_SELECTS).forEach(([id, k]) => $(id).value && p.set(k, $(id).value));
+  Object.entries(HASH_CHECKS).forEach(([id, k]) => $(id).checked && p.set(k, "1"));
+  if (activeTags.size) p.set("tags", [...activeTags].join(","));
+  ["place", "entity", "claim", "stance"].forEach(k => pin[k] && p.set(k, pin[k]));
+  if ($("drawer").classList.contains("open") && cur) p.set("a", cur.id);
+  const h = p.toString();
+  if (location.hash.slice(1) !== h) history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
+}
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  view = p.get("v") || "briefing";
+  if (!document.querySelector(`#nav button[data-view="${view}"]`) || (STATIC && ["collections", "health"].includes(view))) view = "briefing";
+  Object.entries(HASH_SELECTS).forEach(([id, k]) => {
+    const v = p.get(k) || "";
+    if (v && ![...$(id).options].some(o => o.value === v)) $(id).insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(v)}</option>`);
+    $(id).value = v;
+  });
+  Object.entries(HASH_CHECKS).forEach(([id, k]) => $(id).checked = p.get(k) === "1");
+  activeTags = new Set((p.get("tags") || "").split(",").filter(Boolean));
+  pin = { place: p.get("place") || "", entity: p.get("entity") || "", claim: p.get("claim") || "", stance: p.get("stance") || "" };
+  $("q").value = p.get("q") || "";
+  setTab();
+  return { q: $("q").value.trim(), article: +p.get("a") || null };
+}
+function toast(msg) { $("toast").textContent = msg; $("toast").style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => $("toast").style.display = "none", 2200); }
+async function copyLink(url) {
+  try { await navigator.clipboard.writeText(url); toast("Link copied — it opens this exact view"); }
+  catch (e) { prompt("Copy this link:", url); }
+}
+$("shareBtn").onclick = () => copyLink(location.href);
 
 // Full-text search (server-side SQLite FTS5), debounced
 let searchTimer;
-$("q").addEventListener("input", () => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(async () => {
-    const q = $("q").value.trim();
-    if (!q) { hits = null; return render(); }
-    const res = STATIC ? localSearch(q) : await (await fetch(`/api/search?q=${encodeURIComponent(q)}`)).json();
-    hits = new Map(res.map((r, i) => [r.id, { snippet: r.snippet, rank: i }]));
-    render();
-  }, 250);
-});
+async function runSearch() {
+  const q = $("q").value.trim();
+  if (!q) { hits = null; return render(); }
+  const res = STATIC ? localSearch(q) : await (await fetch(`/api/search?q=${encodeURIComponent(q)}`)).json();
+  hits = new Map(res.map((r, i) => [r.id, { snippet: r.snippet, rank: i }]));
+  if (view === "briefing") { view = "articles"; setTab(); }
+  render();
+}
+$("q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250); });
 // Public copy: match every word against titles, excerpts and source (no server index).
 function localSearch(q) {
   const words = q.toLowerCase().replace(/["*]/g, "").split(/\s+/).filter(w => w && w !== "or");
@@ -404,29 +749,52 @@ function localSearch(q) {
 }
 const snippetHtml = s => esc(s).replace(/\[\[/g, "<mark>").replace(/\]\]/g, "</mark>");
 
+function kindBadge(a) {
+  if (a.kind === "news") return "";
+  const label = a.kind === "social" ? a.found_via : a.kind === "podcast" ? "Podcast" : (KIND_LABEL[a.kind] || a.kind);
+  // Social sources already read "Bluesky · @user": show just the icon then.
+  const shown = (a.source || "").startsWith(label) ? "" : esc(label);
+  return `<span class="kindb" title="${esc(label)}">${icon(KIND_ICON[a.kind] || "doc")}${shown}</span>`;
+}
+function relBadge(a) {
+  const r = a.reliability; if (!r) return "";
+  return `<span class="rel ${r.status}" title="Wikipedia's perennial sources list: ${esc(r.detail || r.name + " — " + r.label)}"><i></i>${esc(REL_SHORT[r.status] || r.label)}</span>`;
+}
+// Line 1: what it is and where it's from, plus the flags that matter (alert, new, media).
 function cardMeta(a) {
-  return `<span class="lang">${esc(a.lang)}</span>
-    ${a.kind !== "news" ? `<span class="pill kind ${a.kind}">${esc(a.kind === "social" ? a.found_via : (KIND_LABEL[a.kind] || a.kind))}</span>` : ""}
-    ${a.video ? `<span class="pill video" title="Video">▶ video${a.duration ? " · " + esc(a.duration) : ""}</span>` : ""}
-    <span>${esc(a.source)}</span>${a.country ? `<span>· ${esc(a.country)}</span>` : ""}
-    <span>· ${fmt(dateOf(a))}</span>
-    ${a.state_media ? `<span class="pill state" title="State-owned or government-funded outlet">state media</span>` : ""}
-    ${a.alert ? `<span class="pill alert">alert</span>` : ""}
-    ${a.offtopic ? `<span class="pill off">off-topic?</span>` : ""}
-    <span class="fr ${a.framing}">${esc(FRAME_LABEL[a.framing] || "")}</span>
-    ${a.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}
-    ${(a.collections || []).map(c => `<span class="pill coll">📁 ${esc(collName(c))}</span>`).join("")}
-    ${a.note ? `<span class="pill note" title="You added a note">📝 note</span>` : ""}`;
+  const media = a.kind === "podcast" ? `<span class="flag media">${icon("audio")}${esc(a.duration || "audio")}</span>`
+    : a.video ? `<span class="flag media">${icon("play", "fill")}video${a.duration ? " · " + esc(a.duration) : ""}</span>` : "";
+  return `${kindBadge(a)}<span class="src">${esc(a.source)}</span>
+    ${a.country ? `<span>${esc(a.country)}</span>` : ""}<span class="dot">·</span><span>${fmt(dateOf(a))}</span>
+    <span class="lang" title="${esc(LANGS[a.lang] || a.lang)}">${esc(a.lang)}</span>
+    ${relBadge(a)}
+    ${a.state_media ? `<span class="flag state" title="State-owned or government-funded outlet">state media</span>` : ""}
+    ${media}
+    ${a.alert ? `<span class="flag alert">${icon("bell")}alert</span>` : ""}
+    ${isNew(a) ? `<span class="flag new">${icon("spark")}new</span>` : ""}
+    ${a.offtopic ? `<span class="flag off">off-topic?</span>` : ""}`;
+}
+// Line 3 (quiet): framing, topics, and your own research marks.
+function cardQuiet(a) {
+  const parts = [
+    a.framing && a.framing !== "neutral" ? `<span class="fr ${a.framing}">${esc(FRAME_LABEL[a.framing])}</span>` : "",
+    ...a.tags.map(t => `<span class="t">${esc(t)}</span>`),
+    a.cited ? `<span class="mine cited" title="Your compendium links to this">${icon("book")}in compendium</span>` : "",
+    (a.new_names || []).length ? `<span class="mine newname" title="Not mentioned anywhere in your compendium">${icon("spark")}new to compendium: ${esc(a.new_names.slice(0, 3).join(", "))}</span>` : "",
+    ...(a.collections || []).map(c => `<span class="mine">${icon("folder")}${esc(collName(c))}</span>`),
+    a.note ? `<span class="mine">${icon("note")}note</span>` : "",
+  ].filter(Boolean);
+  return parts.length ? `<div class="quiet">${parts.join("")}</div>` : "";
 }
 
 function articleCard(a, extraClass = "") {
   const orig = $("showOrig").checked;
-  return `<div class="card ${extraClass} ${a.offtopic ? "dim" : ""}" data-id="${a.id}">
+  return `<div class="card ${extraClass} ${a.offtopic ? "dim" : ""} ${isNew(a) ? "isnew" : ""}" data-id="${a.id}">
     <div class="meta">${cardMeta(a)}
       <span class="actions">
-        ${a.archive_url ? `<a href="${esc(a.archive_url)}" target="_blank" rel="noopener" title="Wayback Machine copy"><button>Archived</button></a>` : ""}
-        <button class="admin" data-act="starred" title="Star">${a.starred ? '<span class="star">★</span>' : "☆"}</button>
-        <button class="admin" data-act="hidden" title="Hide this article">Hide</button>
+        ${a.archive_url ? `<a href="${esc(a.archive_url)}" target="_blank" rel="noopener" title="Wayback Machine copy"><button>${icon("archive")}<span class="lbl">Archived</span></button></a>` : ""}
+        <button class="admin" data-act="starred" title="${a.starred ? "Unstar" : "Star"}">${a.starred ? `<span class="star">${icon("star", "fill")}</span>` : icon("star")}</button>
+        <button class="admin" data-act="hidden" title="Hide this article">${icon("hide")}</button>
       </span>
     </div>
     <h2>${esc(orig ? a.title : (a.title_en || a.title))}</h2>
@@ -434,6 +802,7 @@ function articleCard(a, extraClass = "") {
     ${hits?.get(a.id)?.snippet ? `<div class="snippet">${snippetHtml(hits.get(a.id).snippet)}</div>`
       : (a.excerpt_en || a.excerpt) ? `<p>${esc(orig ? a.excerpt : (a.excerpt_en || a.excerpt))}</p>` : ""}
     ${a.note ? `<div class="mynote">${esc(a.note.length > 300 ? a.note.slice(0, 300) + "…" : a.note)}</div>` : ""}
+    ${cardQuiet(a)}
   </div>`;
 }
 
@@ -460,7 +829,7 @@ function renderMap() {
   setTimeout(() => leaflet.invalidateSize(), 0);
   markerLayer.clearLayers();
   const max = Math.max(1, ...names.map(n => counts[n].length));
-  const color = cssVar("--warn");
+  const color = cssVar("--accent");
   names.forEach(name => {
     const p = PLACES[name], arts = counts[name];
     const dates = arts.map(dateOf).sort();
@@ -497,7 +866,7 @@ function renderClaims() {
     return { c, arts, doubt, first, last, spark: months.map(m => byMonth[m] || 0), topCountries, langs, stateN };
   }).sort((a, b) => b.arts.length - a.arts.length);
   $("count").innerHTML = `${CLAIMS.length} tracked claims across ${filtered.length} articles`;
-  const r = cssVar("--accent"), d = cssVar("--warn");
+  const r = cssVar("--accent"), d = cssVar("--skeptic");
   $("view").innerHTML = `<p class="note">Each claim is matched when an article's English text mentions it within a single sentence. <b>Doubt or denial nearby</b> means that sentence also uses words like “denied”, “no evidence”, “unverified” or “propaganda”; it can't tell <i>who</i> is doubting, so open the articles to judge. Edit the claims in <code>app/config.py</code>.</p>
     <div class="list">${cards.map(k => `<div class="card claim">
       <div class="meta"><b>${k.arts.length} articles</b><span>· ${k.langs} language${k.langs === 1 ? "" : "s"}</span>
@@ -600,9 +969,9 @@ function renderCollections() {
   $("view").innerHTML = `<p class="note">Collections and notes are private to this Mac and are never published to the public site. Add articles from any article's panel
     (click a card). Export a collection as a spreadsheet, for Zotero/EndNote (.ris), as BibTeX, or as a briefing digest; notes and translations go into the export.</p>
     <table><thead><tr><th>Collection</th><th>Articles</th><th class="hide-sm">Created</th><th>Export</th><th></th></tr></thead><tbody>
-    <tr><td><a href="#" data-coll-act="show" data-cid="0">📝 Articles with my notes</a></td><td>${notes}</td><td class="hide-sm"></td>
+    <tr><td><a href="#" data-coll-act="show" data-cid="0">${icon("note")} Articles with my notes</a></td><td>${notes}</td><td class="hide-sm"></td>
       <td><span class="btns">${exp(0)}</span></td><td></td></tr>
-    ${COLLS.map(c => `<tr><td><a href="#" data-coll-act="show" data-cid="${c.id}">📁 ${esc(c.name)}</a></td><td>${c.n}</td>
+    ${COLLS.map(c => `<tr><td><a href="#" data-coll-act="show" data-cid="${c.id}">${icon("folder")} ${esc(c.name)}</a></td><td>${c.n}</td>
       <td class="hide-sm">${fmt(c.created_at)}</td><td><span class="btns">${exp(c.id)}</span></td>
       <td><span class="btns"><button data-coll-act="rename" data-cid="${c.id}">Rename</button><button data-coll-act="delete" data-cid="${c.id}">Delete</button></span></td></tr>`).join("")}
     </tbody></table>${COLLS.length ? "" : `<div class="empty">No collections yet. Open any article and click “+ New collection”.</div>`}`;
@@ -624,6 +993,203 @@ async function collectionAction(act, cid) {
   }
   await loadCollections(); render();
 }
+
+// ---------- Bills (Congress.gov) ----------
+const STAGE_NAMES = ["Introduced", "In committee", "Passed one chamber", "Passed both chambers", "Became law"];
+async function renderBills() {
+  if (!BILLS) { $("view").innerHTML = `<div class="empty">Loading bills…</div>`; BILLS = await fetchJson("bills"); if (view !== "bills") return; }
+  const only = $("billScope")?.value || "dedicated";
+  const rows = BILLS.filter(b => only === "all" || b.dedicated);
+  $("count").innerHTML = `${rows.length} of ${BILLS.length} bills <select id="billScope"><option value="dedicated">Bills about AHIs</option><option value="all">All bills with an AHI provision (incl. NDAAs, appropriations)</option></select>`;
+  $("billScope").value = only; $("billScope").onchange = render;
+  $("view").innerHTML = `<p class="note">Bills whose text mentions Havana syndrome / anomalous health incidents (found through GovInfo), with sponsor and status from Congress.gov, refreshed every scrape.
+    “Bills about AHIs” have the topic in their title; the rest are larger bills (NDAAs, intelligence authorizations, appropriations) with an AHI section.</p>
+    ${rows.length ? `<table><thead><tr><th>Bill</th><th>Title</th><th class="hide-sm">Sponsor</th><th class="hide-sm">Introduced</th><th>Status</th><th class="hide-sm">Latest action</th></tr></thead><tbody>
+    ${rows.map(b => `<tr><td style="white-space:nowrap"><a href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.label)}</a></td>
+      <td>${esc(b.title)}${b.cosponsors ? `<div class="sub">${b.cosponsors} cosponsor${b.cosponsors > 1 ? "s" : ""}${b.policy_area ? " · " + esc(b.policy_area) : ""}</div>` : ""}</td>
+      <td class="hide-sm">${esc(b.sponsor || "")}</td><td class="hide-sm">${fmt(b.introduced)}</td>
+      <td><div class="stages ${b.stage === "Became law" ? "law" : ""}" title="${esc(b.stage)}">${STAGE_NAMES.map((_, i) => `<span class="${i <= b.stage_index ? "on" : ""}"></span>`).join("")}</div>
+        <div class="sub">${esc(b.stage)}${b.law ? " · " + esc(b.law) : ""}</div></td>
+      <td class="hide-sm"><span class="sub">${fmt(b.latest_date)}</span> ${esc(b.latest_action || "")}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No bills yet — they appear after the next scrape.</div>`}`;
+}
+
+// ---------- Signals: coverage spikes and Wikipedia activity ----------
+const LANG_LABEL = l => LANGS[l] || l;
+function spikeFilter(sp) {
+  // Jump to the matching articles: set the filter that corresponds to the spike's dimension.
+  const d = sp.dimension, k = sp.key;
+  if (d === "Topic") { activeTags = new Set([k]); }
+  else if (d === "Country") $("country").value = k;
+  else if (d === "Language") $("lang").value = Object.keys(LANGS).find(c => LANGS[c] === k) || "";
+  else if (d === "Person / org") pin.entity = k;
+  else if (d === "Place") pin.place = k;
+  else if (d === "Claim") pin.claim = k;
+  else if (d === "Source type") $("kind").value = k;
+  $("range").value = "7"; view = "articles"; setTab(); render(); window.scrollTo(0, 0);
+}
+async function renderSignals() {
+  if (!SIGNALS || WIKI === null) {
+    $("view").innerHTML = `<div class="empty">Loading signals…</div>`;
+    [SIGNALS, WIKI] = await Promise.all([SIGNALS ? SIGNALS : fetchJson("signals"), fetchJson("wiki")]);
+    if (view !== "signals") return;
+  }
+  const w = WIKI || { recent: [], bursts: [], per_lang: {}, total_edits: 0, languages: 0, days: 60 };
+  $("count").innerHTML = `${SIGNALS.length} coverage spike${SIGNALS.length === 1 ? "" : "s"} · ${w.bursts.length} Wikipedia edit burst${w.bursts.length === 1 ? "" : "s"} in the last ${w.days} days`;
+  $("view").innerHTML = `<p class="note"><b>Coverage spikes</b>: anything with at least 5 items in the last 3 days and 3.0× its usual rate over the previous 4 weeks
+    (counted by publication date, all filters ignored). A macOS notification fires when a scrape finds a new one. <b>Wikipedia</b>: edits to the “Havana syndrome” article in ${w.languages} languages;
+    a burst is 5+ edits in a row with less than 12 hours between them — often a sign of breaking news or an edit dispute. Anonymous editors' IP addresses are not shown.</p>
+    <div class="sig-grid">
+      <div class="panel"><h3>Coverage spikes (last 3 days)</h3>
+        ${SIGNALS.length ? `<table><thead><tr><th>What</th><th>Last 3 days</th><th>Usual</th><th>Last 31 days</th></tr></thead><tbody>
+        ${SIGNALS.map((sp, i) => `<tr class="click" data-spike="${i}"><td><span class="sub">${esc(sp.dimension)}</span><br>${esc(sp.name)}</td>
+          <td><b>${sp.recent}</b> <span class="sub">(${sp.ratio}×)</span></td><td>~${sp.usual}</td><td>${sparkline(sp.series)}</td></tr>`).join("")}</tbody></table>`
+        : `<div class="sub">No spikes right now: coverage is at its usual level.</div>`}</div>
+      <div class="panel"><h3>Wikipedia edit bursts</h3>
+        ${w.bursts.length ? `<table><thead><tr><th>Language</th><th>When</th><th>Edits</th><th>Editors</th><th>Net change</th></tr></thead><tbody>
+        ${w.bursts.map(b => `<tr><td><a href="https://${esc(b.lang)}.wikipedia.org/w/index.php?title=${encodeURIComponent(b.title)}&action=history" target="_blank" rel="noopener">${esc(LANG_LABEL(b.lang))}</a></td>
+          <td>${fmt(b.start)}${b.start.slice(0, 10) !== b.end.slice(0, 10) ? " – " + fmt(b.end) : ""}</td><td>${b.edits}</td><td>${b.editors}</td>
+          <td>${b.net > 0 ? "+" : ""}${b.net.toLocaleString()} bytes</td></tr>`).join("")}</tbody></table>`
+        : `<div class="sub">No edit bursts in the last ${w.days} days.</div>`}
+        <h3 style="margin-top:14px">Edits by language (last ${w.days} days)</h3>
+        <div class="sub">${Object.entries(w.per_lang).map(([l, n]) => `${esc(LANG_LABEL(l))} ${n}`).join(" · ") || "No edits."}</div></div>
+    </div>
+    <div class="panel" style="margin-top:16px"><h3>Latest Wikipedia edits</h3>
+      ${w.recent.length ? `<table><thead><tr><th>When</th><th>Language</th><th>Editor</th><th>Change</th><th>Edit summary</th></tr></thead><tbody>
+      ${w.recent.slice(0, 60).map(e => `<tr><td style="white-space:nowrap"><a href="${esc(e.diff)}" target="_blank" rel="noopener">${new Date(e.ts).toLocaleString()}</a></td>
+        <td>${esc(LANG_LABEL(e.lang))}</td><td>${esc(e.editor)}</td>
+        <td class="${e.delta > 0 ? "ok" : e.delta < 0 ? "bad" : ""}">${e.delta == null ? "" : (e.delta > 0 ? "+" : "") + e.delta}</td>
+        <td class="err">${esc(e.comment)}</td></tr>`).join("")}</tbody></table>` : `<div class="sub">No edits recorded yet.</div>`}</div>`;
+  $("view").querySelectorAll("tr[data-spike]").forEach(tr => tr.onclick = () => spikeFilter(SIGNALS[+tr.dataset.spike]));
+}
+
+// ---------- Source health (local only) ----------
+const ago = iso => { if (!iso) return "never"; const h = (Date.now() - new Date(iso)) / 36e5;
+  return h < 1 ? "under an hour ago" : h < 48 ? `${Math.round(h)} hours ago` : `${Math.round(h / 24)} days ago`; };
+async function renderHealth() {
+  $("view").innerHTML = `<div class="empty">Loading…</div>`;
+  HEALTH = await fetchJson("health"); if (view !== "health") return;
+  const fam = {};
+  HEALTH.forEach(h => (fam[h.family] = fam[h.family] || []).push(h));
+  const rows = Object.entries(fam).map(([name, hs]) => {
+    const failing = hs.filter(h => h.fails > 0), ok = hs.length - failing.length;
+    const lastOk = hs.map(h => h.last_ok).filter(Boolean).sort().pop();
+    const worst = failing.sort((a, b) => b.fails - a.fails)[0];
+    const added = hs.reduce((n, h) => n + (h.added || 0), 0);
+    const status = !failing.length ? `<span class="ok">OK</span>` : ok ? `<span class="warnc">${failing.length} of ${hs.length} failing</span>` : `<span class="bad">Failing</span>`;
+    return { name, hs, failing, html: `<tr><td><b>${esc(name)}</b><div class="sub">${hs.length} quer${hs.length === 1 ? "y" : "ies"}</div></td><td>${status}</td>
+      <td>${ago(lastOk)}</td><td>${added}</td>
+      <td class="err">${worst ? `${esc(worst.label)} — failed ${worst.fails}× in a row (last ${ago(worst.last_error_at)}): ${esc(worst.last_error)}` : ""}</td></tr>` };
+  }).sort((a, b) => (b.failing.length > 0) - (a.failing.length > 0) || a.name.localeCompare(b.name));
+  const bad = rows.filter(r => r.failing.length).length;
+  $("count").innerHTML = `${rows.length} sources · ${bad} with failures`;
+  $("view").innerHTML = `<p class="note">How each source did on recent scrapes. A query that fails once (a rate limit, a timeout) usually recovers on the next scrape; one failing several times in a row needs a look.
+    The Source health tab is local only (not on the public site). API keys are removed from error messages.</p>
+    ${rows.length ? `<table><thead><tr><th>Source</th><th>Status</th><th>Last success</th><th>Added last run</th><th>Problem</th></tr></thead><tbody>${rows.map(r => r.html).join("")}</tbody></table>`
+    : `<div class="empty">No scrape has run since this panel was added — click “Scrape now”.</div>`}`;
+}
+
+// ---------- Briefing (home) ----------
+const daysAgo = n => Date.now() - n * 864e5;
+async function renderBriefing() {
+  $("count").innerHTML = "";
+  if (!SIGNALS || BILLS === null || WIKI === null) {
+    $("view").innerHTML = `<div class="empty">Preparing the briefing…</div>`;
+    [SIGNALS, BILLS, WIKI] = await Promise.all([SIGNALS || fetchJson("signals"), BILLS || fetchJson("bills"), WIKI || fetchJson("wiki")]);
+    if (view !== "briefing") return;
+  }
+  const on = all.filter(a => !a.offtopic);
+  if (!on.length) { $("view").innerHTML = emptyMsg(); return; }
+  // A quiet week falls back to the last 30 days so the page is never empty.
+  let days = 7, win, stories;
+  for (days of [7, 14, 30]) {
+    win = on.filter(a => new Date(dateOf(a)) > daysAgo(days));
+    stories = storiesOf(win.filter(a => !PRIMARY.includes(a.kind) && a.cluster_id)).filter(s => s.items.length >= 2)
+      .sort((a, b) => b.items.length - a.items.length || b.last.localeCompare(a.last));
+    if (stories.length >= 4) break;
+  }
+  const prim = win.filter(a => PRIMARY.includes(a.kind)).sort((a, b) => dateOf(b).localeCompare(dateOf(a)));
+  const ctry = Object.entries(countBy(win, a => a.country)).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const langs = new Set(win.map(a => a.lang)).size, nCountries = new Set(win.map(a => a.country).filter(Boolean)).size;
+  const newCount = on.filter(isNew).length;
+  const moving = (BILLS || []).filter(b => b.latest_date && new Date(b.latest_date) > daysAgo(90))
+    .sort((a, b) => b.latest_date.localeCompare(a.latest_date)).slice(0, 4);
+  const w = WIKI || { recent: [], bursts: [] };
+  const wEdits = w.recent.filter(e => new Date(e.ts) > daysAgo(days));
+  const wBursts = w.bursts.filter(b => new Date(b.end) > daysAgo(days));
+  const start = new Date(daysAgo(days)), end = new Date();
+  const range = `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+  const color = f => cssVar("--" + f);
+  const storyCard = s => {
+    const ls = [...new Set(s.items.map(a => a.lang))], cs = [...new Set(s.items.map(a => a.country).filter(Boolean))];
+    return `<div class="card story-card" data-open="${s.lead.id}">
+      <div class="meta"><b>${s.items.length} outlets</b><span>${ls.length} language${ls.length > 1 ? "s" : ""}</span>
+        ${cs.length ? `<span>${cs.length} countr${cs.length > 1 ? "ies" : "y"}</span>` : ""}<span class="dot">·</span>
+        <span>${fmt(s.first)}${s.first.slice(0, 10) !== s.last.slice(0, 10) ? " – " + fmt(s.last) : ""}</span>
+        ${s.items.some(isNew) ? `<span class="flag new">${icon("spark")}new</span>` : ""}</div>
+      <h2>${esc(s.lead.title_en || s.lead.title)}</h2>
+      ${s.lead.story_summary ? `<p class="summary"><b>Summary</b>${esc(s.lead.story_summary)}</p>`
+        : (s.lead.excerpt_en || s.lead.excerpt) ? `<p>${esc(s.lead.excerpt_en || s.lead.excerpt)}</p>` : ""}
+    </div>`;
+  };
+  $("view").innerHTML = `
+    <div class="brief-hero">
+      <h2>${days === 7 ? "This week" : `The last ${days} days`} <span class="sub">${range}</span></h2>
+      <p>${win.length} items from ${nCountries} countries in ${langs} languages, grouped into ${storiesOf(win).length} stories, including ${prim.length} primary source${prim.length === 1 ? "" : "s"}.
+        ${days > 7 ? "It was a quiet week, so this briefing covers a longer period." : ""}
+        ${newCount ? `<a href="#" data-goto="new">${newCount} new since your last visit →</a>` : ""}</p>
+      <p class="sub">Tracking news, video, social media and primary sources on Havana Syndrome / anomalous health incidents in 15 languages (machine-translated), updated every 6 hours.</p>
+      <div class="kpi">
+        <div><b>${stories.length}</b>stories with 2+ outlets</div>
+        <div><b>${prim.length}</b>primary sources</div>
+        <div><b>${SIGNALS.length}</b>coverage spike${SIGNALS.length === 1 ? "" : "s"}</div>
+        <div><b>${wEdits.length}</b>Wikipedia edits</div>
+      </div>
+    </div>
+    <div class="brief-grid">
+      <div class="brief-col">
+        <div class="bsec"><h3>Top stories <a href="#" data-goto="stories" data-days="${days}">All stories →</a></h3>
+          <div class="list">${stories.slice(0, 6).map(storyCard).join("") || `<div class="sub">No multi-outlet stories in this period.</div>`}</div></div>
+        <div class="bsec panel"><h3>New primary sources <a href="#" data-goto="primary" data-days="${days}">See all →</a></h3>
+          ${prim.slice(0, 8).map(a => `<div class="brow" data-open="${a.id}"><span class="d">${fmt(dateOf(a))}</span>
+            <span><span class="kindb">${icon(KIND_ICON[a.kind] || "doc")}${esc(KIND_LABEL[a.kind] || a.kind)}</span> <span class="t">${esc(a.title_en || a.title)}</span>
+            <span class="sub">· ${esc(a.source)}</span></span></div>`).join("") || `<div class="sub">None in this period.</div>`}</div>
+      </div>
+      <div class="brief-col">
+        <div class="bsec panel"><h3>Coverage spikes <a href="#" data-goto="signals">Signals →</a></h3>
+          ${SIGNALS.slice(0, 4).map((sp, i) => `<div class="brow" data-spike="${i}"><span class="d">${sp.ratio}×</span>
+            <span><span class="t">${esc(sp.name)}</span> <span class="sub">· ${esc(sp.dimension)} · ${sp.recent} items vs ~${sp.usual}</span></span></div>`).join("")
+            || `<div class="sub">Coverage is at its usual level.</div>`}</div>
+        <div class="bsec panel"><h3>Latest milestones <a href="#" data-goto="timeline">Timeline →</a></h3>
+          ${MILESTONES.slice(0, 3).map(m => `<div class="brow" style="cursor:default"><span class="d">${esc(m.label)}</span><span>${mdInline(m.text)}</span></div>`).join("")}</div>
+        <div class="bsec panel"><h3>Bills with recent action <a href="#" data-goto="bills">Bills →</a></h3>
+          ${moving.map(b => `<div class="brow" style="cursor:default"><span class="d">${fmt(b.latest_date)}</span>
+            <span><a href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.label)}</a> ${esc(b.title)}<br><span class="sub">${esc(b.latest_action || "")}</span></span></div>`).join("")
+            || `<div class="sub">No bill activity in the last 90 days.</div>`}</div>
+        <div class="bsec panel"><h3>Where the coverage came from <a href="#" data-goto="countries">Countries →</a></h3>
+          ${ctry.map(([c, n]) => { const arts = win.filter(a => a.country === c), fr = countBy(arts, a => a.framing);
+            return `<div class="crow" style="grid-template-columns:1fr 110px 32px;margin:4px 0"><span>${esc(c)}</span>
+              <span class="bar small" style="width:110px">${FRAMES.map(f => fr[f] ? `<span title="${FRAME_LABEL[f]}: ${fr[f]}" style="width:${100 * fr[f] / n}%;background:${color(f)}"></span>` : "").join("")}</span><span class="sub">${n}</span></div>`; }).join("")}
+          <div class="legend" style="margin:8px 0 0">${["attack", "skeptic", "mixed"].map(f => `<span><i style="background:${color(f)}"></i>${FRAME_LABEL[f]}</span>`).join("")}</div></div>
+        <div class="bsec panel"><h3>Wikipedia <a href="#" data-goto="signals">Edits →</a></h3>
+          <div class="sub">${wEdits.length} edit${wEdits.length === 1 ? "" : "s"} to the Havana syndrome article in ${new Set(wEdits.map(e => e.lang)).size} language${new Set(wEdits.map(e => e.lang)).size === 1 ? "" : "s"}${wBursts.length ? `, including ${wBursts.length} burst${wBursts.length > 1 ? "s" : ""} of rapid editing (${wBursts.map(b => esc(LANG_LABEL(b.lang))).join(", ")})` : ""}.</div></div>
+      </div>
+    </div>`;
+}
+$("view").addEventListener("click", e => {
+  const g = e.target.closest("[data-goto]");
+  if (g) {
+    e.preventDefault();
+    const to = g.dataset.goto, d = g.dataset.days;
+    if (to === "new") { $("newOnly").checked = true; view = "articles"; }
+    else if (to === "primary") { $("kind").value = ""; view = "timeline"; }
+    else view = to;
+    if (d && ["stories"].includes(to)) $("range").value = d <= 7 ? "7" : "30";
+    setTab(); render(); window.scrollTo(0, 0); return;
+  }
+  const sp = e.target.closest(".brow[data-spike]");
+  if (sp) return spikeFilter(SIGNALS[+sp.dataset.spike]);
+});
 
 const emptyMsg = () => `<div class="empty">${all.length ? "Nothing matches these filters." : "No articles yet — click “Scrape now”."}</div>`;
 
@@ -663,7 +1229,8 @@ function renderStories() {
           ${s.lead.tags.slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join("")}
         </div>
         <h2>${esc(s.lead.title_en || s.lead.title)}</h2>
-        ${(s.lead.excerpt_en || s.lead.excerpt) ? `<p>${esc(s.lead.excerpt_en || s.lead.excerpt)}</p>` : ""}
+        ${s.lead.story_summary ? `<p class="summary"><b>Summary</b>${esc(s.lead.story_summary)}</p>`
+          : (s.lead.excerpt_en || s.lead.excerpt) ? `<p>${esc(s.lead.excerpt_en || s.lead.excerpt)}</p>` : ""}
         <div class="story-sub">${s.items.map(a => `<div data-id="${a.id}"><span class="lang">${esc(a.lang)}</span>
           <span>${esc(a.title_en || a.title)}</span><span class="sub">${esc(a.source)}${a.country ? " · " + esc(a.country) : ""} · ${fmt(dateOf(a))}</span></div>`).join("")}</div>
       </div>`;
@@ -724,6 +1291,8 @@ function drawCharts() {
   draw("langChart", lk.slice(0, 10).map(l => LANGS[l] || l), lk.slice(0, 10).map(l => langs[l]), true);
 }
 
+$("sNewCard").onclick = e => { e.preventDefault(); if (!lastVisit) return; $("newOnly").checked = true; view = "articles"; setTab(); render(); window.scrollTo(0, 0); };
+
 // Clicks in the main view
 $("view").addEventListener("click", async e => {
   const row = e.target.closest("tr[data-country]");
@@ -753,27 +1322,35 @@ $("tagChips").addEventListener("click", e => {
   const t = e.target.closest(".chip")?.dataset.tag; if (!t) return;
   activeTags.has(t) ? activeTags.delete(t) : activeTags.add(t); render();
 });
-["lang", "source", "kind", "country", "range", "starred", "foreign", "stateOnly", "showOff", "showOrig", "coll"].forEach(id =>
+["lang", "source", "kind", "country", "range", "starred", "foreign", "stateOnly", "showOff", "showOrig", "coll", "rel", "comp", "newOnly"].forEach(id =>
   $(id).addEventListener("change", render));
 
 // Weekly digests saved by the server in digests/
 async function loadDigests() {
-  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T00:38:16.551620+00:00") : "/api/digests")).json();
+  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T01:18:30.198554+00:00") : "/api/digests")).json();
   $("savedDigests").innerHTML = `<option value="">Weekly digests (${names.length})…</option>` +
     names.map(n => `<option value="${esc(n)}">${esc(n.replace("havana-weekly-", "Week of ").replace(".md", ""))}</option>`).join("");
 }
 $("savedDigests").onchange = e => { if (e.target.value) window.open(`${STATIC ? "" : "/"}digests/${encodeURIComponent(e.target.value)}`); e.target.value = ""; };
-function setTab() { document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === view)); }
-document.querySelector(".tabs").addEventListener("click", e => {
+function setTab() {
+  document.querySelectorAll("#nav button[data-view]").forEach(b => {
+    b.classList.toggle("on", b.dataset.view === view);
+    if (b.dataset.view === view) b.scrollIntoView({ block: "nearest", inline: "nearest" });
+  });
+}
+$("nav").addEventListener("click", e => {
   const b = e.target.closest("button[data-view]"); if (!b) return; view = b.dataset.view; setTab(); render();
 });
 
 // Drawer
-let cur = null, showingOrig = false;
+let cur = null, showingOrig = false, sideBySide = false;
 async function openDrawer(id) {
-  cur = STATIC ? { ...all.find(a => a.id === id) } : await (await fetch(`/api/article/${id}`)).json();
+  const base = all.find(a => a.id === id);
+  if (STATIC && !base) return;
+  cur = STATIC ? { ...base } : await (await fetch(`/api/article/${id}`)).json();
+  if (base) Object.assign(cur, { collections: base.collections, cited: base.cited, new_names: base.new_names });
   showingOrig = false;
-  $("dMeta").innerHTML = cardMeta(cur) + `<span>· via ${esc(cur.found_via)}</span>`;
+  $("dMeta").innerHTML = cardMeta(cur) + `<span class="sub">via ${esc(cur.found_via)}</span>`;
   $("dTitle").textContent = cur.title_en || cur.title;
   $("dOrig").textContent = cur.lang !== "en" ? cur.title : "";
   $("dLink").href = cur.url;
@@ -783,17 +1360,23 @@ async function openDrawer(id) {
   $("dTranslate").style.display = foreign && cur.full_text && !cur.full_text_en ? "" : "none";
   $("dToggle").style.display = foreign && cur.full_text ? "" : "none";
   $("dToggle").textContent = "Show original text";
+  $("dSide").style.display = foreign && (cur.full_text || cur.excerpt) ? "" : "none";
+  $("dSide").classList.toggle("on", sideBySide);
   $("dOff").textContent = cur.offtopic ? "Not off-topic" : "Mark off-topic";
   const yt = youtubeId(cur.url);
-  $("dPlayer").innerHTML = yt ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${yt}" title="${esc(cur.title)}"
+  $("dSummary").innerHTML = cur.story_summary ? `<p class="summary"><b>Story summary</b>${esc(cur.story_summary)}<br><span class="sub">Key sentences picked automatically from the outlets covering this story.</span></p>` : "";
+  $("dPlayer").innerHTML = cur.media_url && !yt ? `<audio controls preload="none" src="${esc(cur.media_url)}"></audio>` : yt ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${yt}" title="${esc(cur.title)}"
     allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>` : "";
   if (!STATIC) { drawResearch(); $("dNote").value = cur.note || ""; $("dNoteState").textContent = ""; }
   showBody();
   $("drawer").classList.add("open");
+  $("scrim").classList.add("on");
+  $("drawer").querySelector(".body").scrollTop = 0;
+  writeHash();
 }
 function drawResearch() {
   const mine = all.find(x => x.id === cur.id)?.collections || [];
-  $("dColls").innerHTML = COLLS.map(c => `<button class="chip ${mine.includes(c.id) ? "on" : ""}" data-cid="${c.id}">📁 ${esc(c.name)}</button>`).join("") +
+  $("dColls").innerHTML = COLLS.map(c => `<button class="chip ${mine.includes(c.id) ? "on" : ""}" data-cid="${c.id}">${icon("folder")} ${esc(c.name)}</button>`).join("") +
     `<button class="chip" id="dNewColl">+ New collection</button>`;
 }
 $("dColls").addEventListener("click", async e => {
@@ -829,7 +1412,21 @@ function youtubeId(url) {
   const m = (url || "").match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
   return m ? m[1] : null;
 }
+// Reading view: original and English side by side for translated articles.
+function bodyTexts() {
+  if (STATIC) return { orig: cur.excerpt || "", en: cur.excerpt_en || "" };
+  return { orig: cur.full_text || cur.excerpt || "", en: cur.full_text_en || cur.excerpt_en || "" };
+}
 function showBody() {
+  if (sideBySide && cur.lang !== "en") {
+    const t = bodyTexts();
+    const enNote = !STATIC && cur.full_text && !cur.full_text_en ? "\n\n… (only the excerpt is translated — click “Translate full text” for the rest)" : "";
+    $("dBody").className = "reading side";
+    $("dBody").innerHTML = `<div><h5>Original (${esc(LANGS[cur.lang] || cur.lang)})</h5>${esc(t.orig.trim())}</div>
+      <div><h5>English (machine translation)</h5>${esc((t.en || "(not translated yet)").trim() + enNote)}</div>`;
+    return;
+  }
+  $("dBody").className = "reading";
   let text;
   if (STATIC) text = (cur.excerpt_en || "") + (cur.lang !== "en" && cur.excerpt ? "\n\nOriginal: " + cur.excerpt : "") +
     (cur.video ? "" : "\n\nShort excerpt only (machine-translated where needed). Use “Open original” to read the full article.");
@@ -853,9 +1450,24 @@ $("dOff").onclick = async () => {
   all.find(x => x.id === cur.id).offtopic = r.offtopic ? 1 : 0; cur.offtopic = r.offtopic;
   $("dOff").textContent = cur.offtopic ? "Not off-topic" : "Mark off-topic"; render();
 };
-const closeDrawer = () => { $("drawer").classList.remove("open"); $("dPlayer").innerHTML = ""; };  // stops playback
+const closeDrawer = () => {
+  $("drawer").classList.remove("open"); $("dPlayer").innerHTML = "";  // clearing the player stops playback
+  $("scrim").classList.remove("on"); writeHash();
+};
 $("dClose").onclick = closeDrawer;
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+$("scrim").onclick = () => { if (!$("morePanel").hidden) setMore(false); closeDrawer(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("morePanel").hidden) setMore(false); else closeDrawer(); } });
+$("dSide").onclick = () => { sideBySide = !sideBySide; $("dSide").classList.toggle("on", sideBySide); showBody(); };
+function setReadSize(px) {
+  px = Math.max(14, Math.min(24, px));
+  document.documentElement.style.setProperty("--read-size", px + "px");
+  try { localStorage.setItem("hsm_read_size", px); } catch (e) {}
+}
+try { const v = +localStorage.getItem("hsm_read_size"); if (v) setReadSize(v); } catch (e) {}
+const readSize = () => parseInt(getComputedStyle(document.documentElement).getPropertyValue("--read-size")) || 17;
+$("dSmaller").onclick = () => setReadSize(readSize() - 1);
+$("dBigger").onclick = () => setReadSize(readSize() + 1);
+$("dShare").onclick = () => copyLink(location.href);
 
 // Export the current filter: briefing digest or citations (CSV / RIS / BibTeX), in the order shown
 function exportIds(format, ids) {
@@ -868,10 +1480,13 @@ function exportIds(format, ids) {
   $("exportForm").elements.format.value = format;
   $("exportForm").submit();
 }
-$("exportSel").onchange = e => {
-  const f = e.target.value; e.target.value = "";
-  if (f) exportIds(f, filtered.map(a => a.id));
-};
+$("exportMenu").addEventListener("click", e => {
+  const b = e.target.closest("button[data-export]"); if (!b) return;
+  $("exportMenu").open = false;
+  exportIds(b.dataset.export, filtered.map(a => a.id));
+});
+// Close header menus when clicking elsewhere.
+document.addEventListener("click", e => document.querySelectorAll("details.menu[open]").forEach(d => { if (!d.contains(e.target)) d.open = false; }));
 
 // Scrape with live log
 // Email subscriptions go through Blogtrottr with the public feed URLs.
@@ -881,7 +1496,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-13T00:38:16.551620+00:00";
+  const updated = "2026-11-13T01:18:30.198554+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -896,7 +1511,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-13T00:38:16.551620+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-13T01:18:30.198554+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
@@ -920,7 +1535,18 @@ $("refreshBtn").onclick = async () => {
   clearTimeout(poll.t); poll();
 };
 
-load(); poll(); loadDigests();
+// Start: restore the view from the address (shared links), then load the data.
+const initial = readHash();
+window.addEventListener("hashchange", async () => {
+  const h = readHash();
+  if (h.q) await runSearch(); else { hits = null; render(); }
+  if (h.article) openDrawer(h.article); else if ($("drawer").classList.contains("open")) closeDrawer();
+});
+load().then(async () => {
+  if (initial.q) await runSearch();
+  if (initial.article) openDrawer(initial.article);
+});
+poll(); loadDigests();
 </script>
 </body>
 </html>
