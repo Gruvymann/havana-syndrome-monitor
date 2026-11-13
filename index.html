@@ -262,6 +262,14 @@
   .about h2 { font-size: 18px; margin: 22px 0 6px; } .about h2:first-child { margin-top: 0; }
   .about p, .about li { font-size: 14px; line-height: 1.6; }
 
+  .profile-head { display: flex; gap: 18px; flex-wrap: wrap; align-items: baseline; }
+  .profile-head h2 { margin: 0; font-size: 22px; }
+  .hlbtn { position: fixed; z-index: 60; display: none; box-shadow: var(--shadow); }
+  .reading mark.hl { background: #fff3a8; color: inherit; border-radius: 2px; }
+  @media (prefers-color-scheme: dark) { .reading mark.hl { background: #6b5a12; } }
+  .hlitem { border-left: 3px solid var(--star); padding: 2px 8px; margin: 6px 0; font-size: 13px; }
+  .src-link { cursor: pointer; } .src-link:hover { text-decoration: underline; }
+
   /* ---------- Briefing ---------- */
   .brief-hero { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
   .brief-hero h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
@@ -356,7 +364,8 @@
   <div class="hactions">
     <button class="primary admin" id="refreshBtn">Scrape now</button>
     <details class="menu admin" id="scrapeOpts"><summary title="Scrape options">⋯</summary>
-      <div class="pop"><label><input type="checkbox" id="useGdelt" checked> Include GDELT in “Scrape now” (slow, rate-limited)</label></div></details>
+      <div class="pop"><label><input type="checkbox" id="useGdelt" checked> Include GDELT in “Scrape now” (slow, rate-limited)</label>
+        <button id="phoneBtn">Phone alerts…</button></div></details>
     <details class="menu admin" id="exportMenu"><summary>Export</summary>
       <div class="pop">
         <span class="sub">The articles in the current filter, in the order shown</span>
@@ -393,6 +402,7 @@
     <span><b id="sCountries">–</b>countries</span>
     <span title="Government, Congress, court, research and FOIA documents"><b id="sPrimary">–</b>primary sources</span>
     <a href="#" class="newlink" id="sNewCard" title="Show only these"><b id="sNew">–</b><span id="sNewLabel">new since your last visit</span></a>
+    <span id="archiveNote" class="sub" >loading the full archive…</span>
     <span class="grow"></span>
     <button class="ghost" id="shareBtn" title="Copy a link to exactly this view (tab, filters, search)"><svg class="ic" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Share this view</button>
     <button class="ghost" id="chartsToggle" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Charts</button>
@@ -421,11 +431,13 @@
       <button data-view="spending">Spending</button>
       <button data-view="alerts">Alerts <span class="badge" id="alertBadge" hidden></span></button></div></div>
     <div class="group admin"><span class="gl">Mine</span><div class="tabs">
+      <button data-view="saved">Saved searches <span class="badge newb" id="savedBadge" hidden></span></button>
       <button data-view="collections">Collections</button>
       <button data-view="foia">FOIA requests <span class="badge" id="foiaBadge" hidden></span></button>
       <button data-view="compendium">Compendium updates</button>
       <button data-view="health">Source health <span class="badge" id="healthBadge" hidden></span></button></div></div>
     <button data-view="compare" hidden></button><button data-view="about" hidden></button>
+    <button data-view="profile" hidden></button><button data-view="phone" hidden></button>
   </nav>
 
   <div id="filterArea">
@@ -448,6 +460,7 @@
         <option value="30">Last 30 days</option><option value="90">Last 90 days</option>
         <option value="365">Last year</option>
       </select>
+      <button id="saveViewBtn" class="admin" title="Save this view (search and filters) and get told about new matches">Save search</button>
       <button id="densityBtn" title="Switch between compact and comfortable cards">Compact</button>
       <button id="moreBtn" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>More filters <span class="badge" id="moreCount" hidden></span></button>
     </div>
@@ -499,6 +512,10 @@
       <button class="admin" id="dTranslate">Translate full text</button>
       <button id="dSide" title="Original and English side by side">Side by side</button>
       <button class="admin" id="dToggle">Show original text</button>
+      <details class="menu admin" id="dRetrans"><summary>Retranslate</summary><div class="pop" style="right:auto;left:0;width:240px">
+        <span class="sub">Translate the title and excerpt again with:</span>
+        <button data-engine="google">Google</button><button data-engine="lingva">Lingva</button>
+        <button data-engine="mymemory">MyMemory</button><button data-engine="argos">Offline (Argos)</button></div></details>
       <span class="sep"></span>
       <button id="dSmaller" title="Smaller text" aria-label="Smaller text">A−</button>
       <button id="dBigger" title="Larger text" aria-label="Larger text">A+</button>
@@ -513,6 +530,8 @@
       <div class="chips" id="dColls"></div>
       <div class="sub" style="display:flex;justify-content:space-between"><span>My note (private: never published)</span><span id="dNoteState"></span></div>
       <textarea id="dNote" placeholder="Why this matters, quotes to use, how it fits your compendium…"></textarea>
+      <div class="sub" style="margin-top:8px">My highlights <span class="sub">· select text in the article below, then click “Highlight”</span></div>
+      <div id="dHighlights"></div>
       <div class="sub" style="margin-top:8px">Answers one of my FOIA requests</div>
       <select id="dFoia" style="width:100%"><option value="">—</option></select>
     </div>
@@ -521,6 +540,7 @@
     <div id="dBody" class="reading"></div></div>
 </aside>
 <div id="toast" role="status"></div>
+<button class="hlbtn primary admin" id="hlBtn">Highlight</button>
 
 <form id="digestForm" method="post" action="/api/digest" style="display:none"><input name="ids"></form>
 <form id="exportForm" method="post" action="/api/export" style="display:none"><input name="ids"><input name="format"></form>
@@ -572,7 +592,7 @@ const KIND_LABEL = { government: "government", congress: "Congress", court: "cou
 let COLLS = [];   // [{id, name, n}] — local dashboard only
 const REL_SHORT = { gr: "reliable", nc: "no consensus", m: "rating varies", gu: "unreliable", d: "deprecated", b: "blacklisted" };
 let BILLS = null, WIKI = null, SIGNALS = null, HEALTH = null, COMP = null, DOCKETS = null;
-const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T03:28:46.779243+00:00") : `/api/${name}`;
+const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T03:46:52.438436+00:00") : `/api/${name}`;
 // "New since your last visit": the visit before this one stays the baseline for this whole browser session.
 let lastVisit = null;
 try {
@@ -588,8 +608,12 @@ const collName = id => COLLS.find(c => c.id === id)?.name || "";
 let all = [], filtered = [], activeTags = new Set(), charts = {}, view = "briefing";
 const DEFAULT_SUB = { people: "table", claims: "claims", alerts: "alerts" };
 let subview = { ...DEFAULT_SUB }, compareId = null, FOIA = null;
-let COPY_COUNT = {}, FIRST_COPY = new Set();
+let COPY_COUNT = {}, FIRST_COPY = new Set(), profileOf = null, SAVED = null, HIGHLIGHTS = null;
 // Independent outlets: articles republishing the same text count once.
+// Breaking: 3+ independent outlets in 2+ countries, first article within the last 24 hours.
+const isBreaking = items => { const first = items.map(dateOf).sort()[0] || "";
+  return new Date(first) > Date.now() - 864e5 && independent(items) >= 3 && new Set(items.map(a => a.country).filter(Boolean)).size >= 2; };
+const breakingFlag = items => isBreaking(items) ? `<span class="flag alert">${icon("bell")}breaking</span>` : "";
 const independent = items => new Set(items.map(a => a.wire_group ? "g" + a.wire_group : "a" + a.id)).size;
 const outletsLabel = items => { const n = items.length, k = independent(items);
   return `${n} outlet${n > 1 ? "s" : ""}${k < n ? ` <span class="sub" title="Articles republishing the same wire text count once">(${k} independent)</span>` : ""}`; };
@@ -623,7 +647,18 @@ async function loadCollections() {
 
 async function load() {
   // The public copy's data URL carries the publish time, so browsers never pair a new page with stale cached data.
-  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T03:28:46.779243+00:00") : "/api/articles")).json();
+  if (STATIC) {
+    // Recent items first (enough for the Briefing), then the archive in the background.
+    const v = "?v=" + encodeURIComponent("2026-11-13T03:46:52.438436+00:00");
+    if (!load.archive) {
+      all = await (await fetch("data/articles-recent.json" + v)).json();
+      load.archive = fetch("data/articles-archive.json" + v).then(r => r.json()).then(older => {
+        all = all.concat(older); load.done = true; $("archiveNote").hidden = true; load();
+      });
+    }
+  } else {
+    all = await (await fetch("/api/articles")).json();
+  }
   const on = all.filter(a => !a.offtopic);
   COPY_COUNT = countBy(all, a => a.wire_group);
   FIRST_COPY = new Set(Object.values(all.filter(a => a.wire_group).reduce((m, a) => {
@@ -642,7 +677,7 @@ async function load() {
   $("sNewLabel").textContent = lastVisit ? `new since your last visit (${new Date(lastVisit).toLocaleDateString()})` : "new since your last visit (first visit)";
   if (!SIGNALS) fetchJson("signals").then(d => { SIGNALS = d; $("spikeBadge").hidden = !d.length; $("spikeBadge").textContent = d.length; });
   if (!STATIC && !HEALTH) fetchJson("health").then(d => { HEALTH = d; const bad = d.filter(h => h.fails >= 2).length; $("healthBadge").hidden = !bad; $("healthBadge").textContent = bad; });
-  if (!STATIC) { await loadCollections(); if (!FOIA) loadFoia(); }  // FOIA loads alongside; never blocks the page
+  if (!STATIC) { await loadCollections(); if (!FOIA) loadFoia(); if (!SAVED) loadSaved(); }  // these load alongside; never block the page
   const unseen = all.filter(a => a.alert && !a.alert_seen).length;
   $("alertBadge").hidden = !unseen; $("alertBadge").textContent = unseen;
   render();
@@ -698,13 +733,15 @@ function render() {
   ({ briefing: renderBriefing, articles: renderArticles, stories: renderStories, timeline: renderTimeline, countries: renderCountries, claims: renderClaims,
      map: renderMap, people: renderPeople, alerts: renderAlerts, collections: renderCollections,
      bills: renderBills, cases: renderCases, spending: renderSpending, signals: renderSignals, health: renderHealth,
-     foia: renderFoia, compare: renderCompare, about: renderAbout, compendium: renderCompendium })[view]();
+     foia: renderFoia, compare: renderCompare, about: renderAbout, compendium: renderCompendium,
+     saved: renderSaved, profile: renderProfile, phone: renderPhone })[view]();
   if (!$("chartsBox").hidden) drawCharts();
   writeHash();
 }
 
 // ---------- active filter chips and the "More filters" panel ----------
-const NO_FILTER_VIEWS = ["briefing", "bills", "cases", "spending", "signals", "collections", "health", "foia", "compare", "about", "compendium"];
+const NO_FILTER_VIEWS = ["briefing", "bills", "cases", "spending", "signals", "collections", "health", "foia", "compare", "about", "compendium",
+                         "saved", "profile", "phone"];
 const SELECT_LABEL = { kind: "Type", lang: "Language", range: "Date", country: "Country", source: "Source", rel: "Reliability", linkst: "Link", coll: "", comp: "" };
 const CHECK_LABEL = { newOnly: "New since last visit", starred: "Starred", foreign: "Non-English", stateOnly: "State media", showOff: "Including off-topic",
                       hideCopies: "No duplicate copies" };
@@ -773,6 +810,7 @@ function writeHash() {
   if (view !== "briefing") p.set("v", view);
   if (view in DEFAULT_SUB && subview[view] !== DEFAULT_SUB[view]) p.set("sub", subview[view]);
   if (view === "compare" && compareId) p.set("story", compareId);
+  if (view === "profile" && profileOf) p.set(profileOf.type, profileOf.name);
   const q = $("q").value.trim(); if (q) p.set("q", q);
   Object.entries(HASH_SELECTS).forEach(([id, k]) => $(id).value && p.set(k, $(id).value));
   Object.entries(HASH_CHECKS).forEach(([id, k]) => $(id).checked && p.set(k, "1"));
@@ -785,7 +823,8 @@ function writeHash() {
 function readHash() {
   const p = new URLSearchParams(location.hash.slice(1));
   view = p.get("v") || "briefing";
-  if (!document.querySelector(`#nav button[data-view="${view}"]`) || (STATIC && ["collections", "health", "foia", "compendium"].includes(view))) view = "briefing";
+  if (!document.querySelector(`#nav button[data-view="${view}"]`) || (STATIC && ["collections", "health", "foia", "compendium", "saved", "phone"].includes(view))) view = "briefing";
+  profileOf = p.get("person") ? { type: "person", name: p.get("person") } : p.get("outlet") ? { type: "outlet", name: p.get("outlet") } : null;
   subview = { ...DEFAULT_SUB };
   if (p.get("sub") && view in DEFAULT_SUB) subview[view] = p.get("sub");
   compareId = +p.get("story") || null;
@@ -846,7 +885,7 @@ function relBadge(a) {
 function cardMeta(a) {
   const media = a.kind === "podcast" ? `<span class="flag media">${icon("audio")}${esc(a.duration || "audio")}</span>`
     : a.video ? `<span class="flag media">${icon("play", "fill")}video${a.duration ? " · " + esc(a.duration) : ""}</span>` : "";
-  return `${kindBadge(a)}<span class="src">${esc(a.source)}</span>
+  return `${kindBadge(a)}<span class="src src-link" data-outlet="${esc(a.source)}" title="Outlet profile">${esc(a.source)}</span>
     ${a.country ? `<span>${esc(a.country)}</span>` : ""}<span class="dot">·</span><span>${fmt(dateOf(a))}</span>
     <span class="lang" title="${esc(LANGS[a.lang] || a.lang)}">${esc(a.lang)}</span>
     ${relBadge(a)}
@@ -855,6 +894,7 @@ function cardMeta(a) {
     ${a.alert ? `<span class="flag alert">${icon("bell")}alert</span>` : ""}
     ${isNew(a) ? `<span class="flag new">${icon("spark")}new</span>` : ""}
     ${a.offtopic ? `<span class="flag off">off-topic?</span>` : ""}
+    ${a.translation_flag ? `<span class="flag off" title="${esc(a.translation_flag)}">translation may be poor</span>` : ""}
     ${a.wire ? `<span class="flag media" title="Republishes ${esc(a.wire)} copy">${esc(a.wire)} wire</span>` : ""}
     ${a.correction ? `<span class="flag changed" title="${esc(a.correction)}">corrected later</span>` : ""}
     ${["gone", "moved"].includes(a.link_status) ? `<span class="flag changed" title="The original link no longer works${a.archive_url ? "; an archived copy is linked" : ""}">taken down</span>` : ""}`;
@@ -956,6 +996,13 @@ function renderMap() {
       <button data-place="${esc(name)}">Show articles</button>`);
   });
 }
+// Outlet and person names open their profile pages (capture phase: before a card opens the article).
+document.addEventListener("click", e => {
+  const o = e.target.closest("[data-outlet]"), pp = e.target.closest("[data-person]");
+  if (!o && !pp) return;
+  e.stopPropagation(); e.preventDefault(); closeDrawer();
+  openProfile(o ? "outlet" : "person", o ? o.dataset.outlet : pp.dataset.person);
+}, true);
 document.addEventListener("click", e => {
   const b = e.target.closest("button[data-place]");
   if (b) { pin.place = b.dataset.place; view = "articles"; setTab(); render(); window.scrollTo(0, 0); }
@@ -1206,7 +1253,7 @@ function renderQuotes() {
     `<p class="note">Direct quotes attributed to a named person (“…,” said …) in articles' English text. Translated quotes are machine translations, not the speaker's words; check the original before quoting.</p>
     <div class="filters"><select id="speakerSel"><option value="">Everyone (${items.length})</option>${speakers.map(([n, c]) => `<option value="${esc(n)}" ${n === who ? "selected" : ""}>${esc(n)} (${c})</option>`).join("")}</select></div>
     <div class="list">${shown.slice(0, 200).map(({ a, q, who }) => `<div class="quote" data-open="${a.id}"><blockquote>${esc(q.q)}</blockquote>
-      <div class="meta"><b>${esc(q.who)}</b>${q.ent && q.ent !== q.who ? `<span class="sub">(${esc(q.ent)})</span>` : ""}<span class="dot">·</span>
+      <div class="meta"><b ${q.ent ? `class="src-link" data-person="${esc(q.ent)}"` : ""}>${esc(q.who)}</b>${q.ent && q.ent !== q.who ? `<span class="sub">(${esc(q.ent)})</span>` : ""}<span class="dot">·</span>
       <span>${esc(a.source)}</span><span>${fmt(dateOf(a))}</span>${a.lang !== "en" ? `<span class="flag media">translated from ${esc(LANGS[a.lang] || a.lang)}</span>` : ""}</div></div>`).join("")
       || `<div class="empty">No quotes in the current filter.</div>`}</div>`;
   $("speakerSel").onchange = e => { subview.speaker = e.target.value; render(); };
@@ -1400,6 +1447,139 @@ async function renderCompendium() {
   };
 }
 
+// ---------- Profiles: one page per person or outlet ----------
+function openProfile(type, name) { profileOf = { type, name }; view = "profile"; setTab(); render(); window.scrollTo(0, 0); }
+function yearBars(arts) {
+  const by = countBy(arts, a => dateOf(a).slice(0, 4)), ys = Object.keys(by).sort(), max = Math.max(1, ...Object.values(by));
+  return ys.map(y => `<div class="crow" style="grid-template-columns:44px 1fr 36px;margin:3px 0"><span>${y}</span><span class="bar small" style="width:100%">
+    <span style="width:${100 * by[y] / max}%;background:var(--accent)"></span></span><span class="sub">${by[y]}</span></div>`).join("");
+}
+function renderProfile() {
+  if (!profileOf) { view = "briefing"; return render(); }
+  const { type, name } = profileOf, on = all.filter(a => !a.offtopic);
+  const arts = (type === "person" ? on.filter(a => a.entities.includes(name)) : on.filter(a => a.source === name))
+    .sort((a, b) => dateOf(b).localeCompare(dateOf(a)));
+  $("count").innerHTML = `${type === "person" ? "Person or organization" : "Outlet"} profile <button id="profBack">← Back</button>`;
+  $("profBack").onclick = () => { view = type === "person" ? "people" : "articles"; setTab(); render(); };
+  const color = f => cssVar("--" + f), fr = countBy(arts, a => a.framing), n = arts.length || 1;
+  const framing = `<div class="bar" style="margin:6px 0">${FRAMES.map(f => fr[f] ? `<span title="${FRAME_LABEL[f]}: ${fr[f]}" style="width:${100 * fr[f] / n}%;background:${color(f)}"></span>` : "").join("")}</div>
+    <div class="sub">${FRAMES.filter(f => fr[f]).map(f => `${FRAME_LABEL[f]} ${fr[f]}`).join(" · ")}</div>`;
+  const topics = Object.entries(countBy(arts.flatMap(a => a.tags), t => t)).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const list = arts.slice(0, 40).map(a => `<div class="brow" data-open="${a.id}"><span class="d">${fmt(dateOf(a))}</span><span><span class="t">${esc(a.title_en || a.title)}</span>
+    <br><span class="sub">${esc(a.source)}${a.country ? " · " + esc(a.country) : ""}</span></span></div>`).join("");
+  let body = "";
+  if (type === "person") {
+    const quotes = on.flatMap(a => (a.quotes || []).filter(q => q.ent === name).map(q => ({ q, a }))).sort((x, y) => dateOf(y.a).localeCompare(dateOf(x.a)));
+    const co = {};
+    arts.forEach(a => a.entities.forEach(e2 => { if (e2 !== name) co[e2] = (co[e2] || 0) + 1; }));
+    const outlets = Object.entries(countBy(arts, a => a.source)).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const claimsN = {};
+    arts.forEach(a => Object.keys(a.claims || {}).forEach(c => claimsN[c] = (claimsN[c] || 0) + 1));
+    body = `<div class="sig-grid">
+      <div class="panel"><h3>Mentions by year</h3>${yearBars(arts) || "<div class=sub>None.</div>"}</div>
+      <div class="panel"><h3>Mentioned most often with</h3>${Object.entries(co).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) =>
+        `<div class="brow" data-person="${esc(k)}"><span class="d">${v}</span><span class="t">${esc(k)}</span></div>`).join("") || "<div class=sub>No one yet.</div>"}</div>
+      <div class="panel"><h3>Framing of coverage</h3>${framing}<h3 style="margin-top:12px">Topics</h3>${topics.map(([t, c]) => `<span class="tag">${esc(t)} ${c}</span>`).join(" ")}</div>
+      <div class="panel"><h3>Outlets covering them most</h3>${outlets.map(([o, c]) => `<div class="brow" data-outlet="${esc(o)}"><span class="d">${c}</span><span class="t">${esc(o)}</span></div>`).join("")}
+        ${Object.keys(claimsN).length ? `<h3 style="margin-top:12px">Claims in their coverage</h3>${Object.entries(claimsN).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<div class="sub">${esc(CLAIM_NAME[c] || c)} · ${v}</div>`).join("")}` : ""}</div>
+    </div>
+    <div class="panel" style="margin:14px 0"><h3>Quotes (${quotes.length})</h3>${quotes.slice(0, 12).map(({ q, a }) => `<div class="quote" data-open="${a.id}" style="margin-bottom:8px"><blockquote>${esc(q.q)}</blockquote>
+      <div class="meta"><span>${esc(a.source)}</span><span>${fmt(dateOf(a))}</span>${a.lang !== "en" ? `<span class="flag media">translated</span>` : ""}</div></div>`).join("") || "<div class=sub>No attributed quotes found.</div>"}</div>`;
+  } else {
+    const sample = arts[0] || {}, rel = sample.reliability;
+    const corrected = arts.filter(a => a.correction).length, gone = arts.filter(a => ["gone", "moved"].includes(a.link_status)).length;
+    const wireN = arts.filter(a => a.wire || (a.wire_group && COPY_COUNT[a.wire_group] > 1)).length;
+    const people = Object.entries(countBy(arts.flatMap(a => a.entities), x => x)).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    body = `<div class="sig-grid">
+      <div class="panel"><h3>About this outlet</h3>
+        <div class="sub">${esc(sample.country || "Country unknown")} · ${esc(LANGS[sample.lang] || sample.lang || "")}${sample.state_media ? " · state-owned or government-funded" : ""}</div>
+        <div style="margin-top:8px">${rel ? `${relBadge(sample)} <span class="sub">${esc(rel.detail || rel.name)} (Wikipedia's perennial sources list)</span>` : `<span class="sub">Not rated on Wikipedia's perennial sources list.</span>`}</div>
+        <div class="sub" style="margin-top:8px">${wireN} of ${arts.length} items share text with other outlets · ${corrected} corrected later · ${gone} taken down</div></div>
+      <div class="panel"><h3>Items by year</h3>${yearBars(arts)}</div>
+      <div class="panel"><h3>Framing</h3>${framing}<h3 style="margin-top:12px">Topics</h3>${topics.map(([t, c]) => `<span class="tag">${esc(t)} ${c}</span>`).join(" ")}</div>
+      <div class="panel"><h3>People and organizations it covers most</h3>${people.map(([k, v]) => `<div class="brow" data-person="${esc(k)}"><span class="d">${v}</span><span class="t">${esc(k)}</span></div>`).join("") || "<div class=sub>None.</div>"}</div>
+    </div>`;
+  }
+  $("view").innerHTML = `<div class="brief-hero"><div class="profile-head"><h2>${esc(name)}</h2><span class="sub">${arts.length} item${arts.length === 1 ? "" : "s"}${arts.length ? ` · ${fmt(dateOf(arts[arts.length - 1]))} – ${fmt(dateOf(arts[0]))}` : ""}</span>
+      <button id="profAll">All ${arts.length} items in Articles</button></div></div>${body}
+    <div class="panel" style="margin-top:14px"><h3>Latest items</h3>${list || "<div class=sub>None.</div>"}</div>`;
+  $("profAll").onclick = () => { if (type === "person") pin.entity = name;
+    else { if (![...$("source").options].some(o => o.value === name)) $("source").insertAdjacentHTML("beforeend", `<option value="${esc(name)}">${esc(name)}</option>`); $("source").value = name; }
+    view = "articles"; setTab(); render(); window.scrollTo(0, 0); };
+}
+
+// ---------- Saved searches (local only) ----------
+async function loadSaved() {
+  if (STATIC) return;
+  SAVED = await fetchJson("saved");
+  const n = SAVED.reduce((k, x) => k + x.new, 0);
+  $("savedBadge").hidden = !n; $("savedBadge").textContent = n;
+}
+$("saveViewBtn").onclick = async () => {
+  const params = location.hash.slice(1).replace(/(^|&)a=\d+/, "").replace(/^&/, "");
+  if (!params || /^v=[a-z]+$/.test(params)) return alert("Set a search or some filters first, then save them.");
+  const label = activeFilters().map(f => f.label).join(", ");
+  const name = prompt("Name for this saved search (you'll be told about new matches after each scrape):", label.slice(0, 60));
+  if (!name || !name.trim()) return;
+  await fetch("/api/saved", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), params }) });
+  await loadSaved(); toast(`Saved “${name.trim()}”`);
+};
+const paramsLabel = params => { const p = new URLSearchParams(params), out = [];
+  if (p.get("q")) out.push(`search “${p.get("q")}”`);
+  [["kind", "type"], ["lang", "language"], ["country", "country"], ["src", "source"], ["rel", "reliability"], ["entity", "person"], ["place", "place"]].forEach(([k, l]) => p.get(k) && out.push(`${l}: ${p.get(k)}`));
+  if (p.get("claim")) out.push(`claim: ${CLAIM_NAME[p.get("claim")] || p.get("claim")}`);
+  if (p.get("tags")) out.push("#" + p.get("tags").split(",").join(" #"));
+  return out.join(" · ") || params; };
+async function renderSaved() {
+  $("view").innerHTML = `<div class="empty">Loading…</div>`;
+  await loadSaved(); if (view !== "saved") return;
+  $("count").innerHTML = `${SAVED.length} saved search${SAVED.length === 1 ? "" : "es"}`;
+  $("view").innerHTML = `<p class="note">Save any search or set of filters with <b>Save search</b> in the filter bar. After each scrape you're told (Mac notification, and your phone if
+    phone alerts are on) when new items match. Private: kept on this Mac; only a search's name and the headline of its first new match go to your phone.</p>
+    ${SAVED.length ? `<table><thead><tr><th>Name</th><th>Filters</th><th>Matches</th><th>New</th><th>Notify</th><th></th></tr></thead><tbody>
+    ${SAVED.map(x => `<tr><td><a href="#" data-saved-open="${x.id}"><b>${esc(x.name)}</b></a></td><td class="sub">${esc(paramsLabel(x.params))}</td>
+      <td>${x.total}</td><td>${x.new ? `<span class="flag new">${x.new} new</span>` : ""}</td>
+      <td><input type="checkbox" data-saved-notify="${x.id}" ${x.notify ? "checked" : ""}></td>
+      <td><button data-saved-del="${x.id}">Delete</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No saved searches yet. Search or filter, then click “Save search”.</div>`}`;
+  $("view").querySelectorAll("[data-saved-open]").forEach(el => el.onclick = async ev => { ev.preventDefault();
+    const x = SAVED.find(y => y.id === +el.dataset.savedOpen);
+    await fetch(`/api/saved/${x.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seen: true }) });
+    location.hash = x.params; loadSaved(); });
+  $("view").querySelectorAll("[data-saved-notify]").forEach(el => el.onchange = () => fetch(`/api/saved/${el.dataset.savedNotify}`,
+    { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notify: el.checked }) }));
+  $("view").querySelectorAll("[data-saved-del]").forEach(el => el.onclick = async () => {
+    if (!confirm("Delete this saved search?")) return;
+    await fetch(`/api/saved/${el.dataset.savedDel}`, { method: "DELETE" }); render(); });
+}
+
+// ---------- Phone alerts (ntfy) ----------
+async function renderPhone() {
+  const s = await (await fetch("/api/push")).json();
+  $("count").innerHTML = "Phone alerts";
+  const on = s && s.topic;
+  $("view").innerHTML = `<div class="panel about" style="padding:18px 22px">
+    <h2>Phone alerts</h2>
+    <p>Get the dashboard's notifications on your phone through <b>ntfy</b>, a free notification app: new alerts, breaking stories, coverage spikes, new matches for your
+      saved searches, and a reminder when a FOIA request is overdue.</p>
+    <p class="sub">Privacy: anyone who knows the topic name can read its notifications, so it's a long random name; don't share it. The ntfy.sh service sees the message text,
+      so pushes carry only public headlines and your saved searches' names, never FOIA request details, notes or collections.</p>
+    ${on ? `<ol>
+      <li>Install <b>ntfy</b> on your phone (App Store or Google Play).</li>
+      <li>Tap <b>+</b> (Subscribe to topic) and enter this topic exactly:<br><code style="font-size:15px;user-select:all">${esc(s.topic)}</code></li>
+      <li>Leave the server as the default (ntfy.sh), then send a test below.</li></ol>
+      <div class="btns"><button class="primary" id="pushTest">Send a test notification</button>
+        <label style="align-self:center"><input type="checkbox" id="pushOn" ${s.enabled ? "checked" : ""}> Phone alerts on</label></div>`
+    : `<button class="primary" id="pushSetup">Set up phone alerts</button>`}</div>`;
+  if (!on) $("pushSetup").onclick = async () => { await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "setup" }) }); render(); };
+  else {
+    $("pushTest").onclick = async () => { const r = await (await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "test" }) })).json();
+      toast(r.sent ? "Test sent: check your phone" : "Couldn't reach ntfy.sh, or alerts are off"); };
+    $("pushOn").onchange = e => fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: e.target.checked }) });
+  }
+}
+$("phoneBtn").onclick = () => { $("scrapeOpts").open = false; view = "phone"; setTab(); render(); window.scrollTo(0, 0); };
+
 // ---------- About ----------
 function renderAbout() {
   const on = all.filter(a => !a.offtopic), by = countBy(on, a => a.kind);
@@ -1591,7 +1771,7 @@ async function renderBriefing() {
   const storyCard = s => {
     const ls = [...new Set(s.items.map(a => a.lang))], cs = [...new Set(s.items.map(a => a.country).filter(Boolean))];
     return `<div class="card story-card" data-open="${s.lead.id}">
-      <div class="meta"><b>${outletsLabel(s.items)}</b><span>${ls.length} language${ls.length > 1 ? "s" : ""}</span>
+      <div class="meta">${breakingFlag(s.items)}<b>${outletsLabel(s.items)}</b><span>${ls.length} language${ls.length > 1 ? "s" : ""}</span>
         ${cs.length ? `<span>${cs.length} countr${cs.length > 1 ? "ies" : "y"}</span>` : ""}<span class="dot">·</span>
         <span>${fmt(s.first)}${s.first.slice(0, 10) !== s.last.slice(0, 10) ? " – " + fmt(s.last) : ""}</span>
         ${s.items.some(isNew) ? `<span class="flag new">${icon("spark")}new</span>` : ""}</div>
@@ -1689,7 +1869,7 @@ function renderStories() {
       const langs = [...new Set(s.items.map(a => a.lang))], countries = [...new Set(s.items.map(a => a.country).filter(Boolean))];
       const fr = countBy(s.items, a => a.framing);
       return `<div class="card story" data-story="${s.lead.id}">
-        <div class="meta"><b>${outletsLabel(s.items)}</b>
+        <div class="meta">${breakingFlag(s.items)}<b>${outletsLabel(s.items)}</b>
           <span>· ${langs.length} language${langs.length > 1 ? "s" : ""}: ${langs.map(l => `<span class="lang">${esc(l)}</span>`).join(" ")}</span>
           ${countries.length ? `<span>· ${countries.length} countr${countries.length > 1 ? "ies" : "y"}</span>` : ""}
           <span>· ${fmt(s.first)}${s.first.slice(0, 10) !== s.last.slice(0, 10) ? " – " + fmt(s.last) : ""}</span>
@@ -1783,7 +1963,7 @@ $("view").addEventListener("click", async e => {
   const row = e.target.closest("tr[data-country]");
   if (row) { $("country").value = row.dataset.country === "Unknown" ? "" : row.dataset.country; view = "articles"; setTab(); return render(); }
   const ent = e.target.closest("tr[data-entity]");
-  if (ent) { pin.entity = ent.dataset.entity; view = "articles"; setTab(); window.scrollTo(0, 0); return render(); }
+  if (ent) return openProfile("person", ent.dataset.entity);
   const cmp = e.target.closest("button[data-compare]");
   if (cmp) return openCompare(+cmp.dataset.compare);
   const st = e.target.closest("button[data-sub]");
@@ -1816,11 +1996,18 @@ $("tagChips").addEventListener("click", e => {
 
 // Weekly digests saved by the server in digests/
 async function loadDigests() {
-  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T03:28:46.779243+00:00") : "/api/digests")).json();
-  $("savedDigests").innerHTML = `<option value="">Weekly digests (${names.length})…</option>` +
-    names.map(n => `<option value="${esc(n)}">${esc(n.replace("havana-weekly-", "Week of ").replace(".md", ""))}</option>`).join("");
+  const v = "?v=" + encodeURIComponent("2026-11-13T03:46:52.438436+00:00");
+  const names = await (await fetch(STATIC ? "data/digests.json" + v : "/api/digests")).json();
+  let reports = [];
+  try { reports = await (await fetch(STATIC ? "data/reports.json" + v : "/api/reports")).json(); } catch (e) {}
+  $("savedDigests").innerHTML = `<option value="">Reports & digests…</option>` +
+    (reports.length ? `<optgroup label="Monthly reports (PDF)">${reports.map(n => `<option value="r:${esc(n)}">${esc(new Date(n.slice(15, 22) + "-15").toLocaleDateString(undefined, { month: "long", year: "numeric" }))}</option>`).join("")}</optgroup>` : "") +
+    `<optgroup label="Weekly digests">${names.map(n => `<option value="d:${esc(n)}">${esc(n.replace("havana-weekly-", "Week of ").replace(".md", ""))}</option>`).join("")}</optgroup>`;
 }
-$("savedDigests").onchange = e => { if (e.target.value) window.open(`${STATIC ? "" : "/"}digests/${encodeURIComponent(e.target.value)}`); e.target.value = ""; };
+$("savedDigests").onchange = e => {
+  const val = e.target.value; e.target.value = ""; if (!val) return;
+  window.open(`${STATIC ? "" : "/"}${val.startsWith("r:") ? "reports" : "digests"}/${encodeURIComponent(val.slice(2))}`);
+};
 function setTab() {
   document.querySelectorAll("#nav button[data-view]").forEach(b => {
     b.classList.toggle("on", b.dataset.view === view);
@@ -1861,6 +2048,9 @@ async function openDrawer(id) {
   if (!STATIC) { drawResearch(); $("dNote").value = cur.note || ""; $("dNoteState").textContent = "";
     const linked = (FOIA?.requests || []).find(r => r.links.includes(cur.id)); $("dFoia").value = linked ? linked.id : ""; }
   $("dFind").value = searchTerm();
+  $("dRetrans").style.display = cur.lang !== "en" && !STATIC ? "" : "none";
+  if (cur.translation_flag) $("dSummary").insertAdjacentHTML("afterbegin", `<div class="notice"><b>This translation may be poor</b> (${esc(cur.translation_flag)}). Use <b>Retranslate</b> to try another engine.</div>`);
+  if (!STATIC) setTimeout(drawHighlights, 0);
   showBody();
   $("drawer").classList.add("open");
   $("scrim").classList.add("on");
@@ -1896,6 +2086,57 @@ $("dFoia").onchange = async () => {
   if (want && !(FOIA.requests.find(r => r.id === want)?.links.includes(cur.id))) await fetch(`/api/foia/${want}/link/${cur.id}`, { method: "POST" });
   await loadFoia(); toast(want ? "Linked to the FOIA request" : "Unlinked");
 };
+// Highlights: select text in the article, click "Highlight" (saved locally, included in citation exports).
+async function drawHighlights() {
+  if (STATIC || !cur) return;
+  HIGHLIGHTS = await (await fetch("/api/highlights")).json();
+  const mine = HIGHLIGHTS.filter(h => h.article_id === cur.id);
+  $("dHighlights").innerHTML = mine.map(h => `<div class="hlitem">“${esc(h.text)}” <button class="ghost" data-hl-del="${h.id}" title="Remove highlight">✕</button></div>`).join("")
+    || `<div class="sub">None yet.</div>`;
+  markHighlights(mine);
+}
+function markHighlights(list) {
+  const body = $("dBody");
+  list.forEach(h => {
+    const needle = h.text.slice(0, 200);
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode, i = node.nodeValue.indexOf(needle);
+      if (i < 0) continue;
+      const range = document.createRange(); range.setStart(node, i); range.setEnd(node, i + needle.length);
+      const mark = document.createElement("mark"); mark.className = "hl"; range.surroundContents(mark); break;
+    }
+  });
+}
+document.addEventListener("mouseup", () => {
+  if (STATIC) return;
+  const sel = window.getSelection(), text = sel ? sel.toString().trim() : "";
+  if (text.length < 8 || !$("dBody").contains(sel.anchorNode)) { $("hlBtn").style.display = "none"; return; }
+  const r = sel.getRangeAt(0).getBoundingClientRect();
+  Object.assign($("hlBtn").style, { display: "block", top: `${Math.max(8, r.top - 40)}px`, left: `${Math.min(innerWidth - 120, r.left)}px` });
+  $("hlBtn").dataset.text = text;
+});
+$("hlBtn").onmousedown = e => e.preventDefault();
+$("hlBtn").onclick = async () => {
+  await fetch(`/api/article/${cur.id}/highlights`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: $("hlBtn").dataset.text }) });
+  $("hlBtn").style.display = "none"; window.getSelection().removeAllRanges(); drawHighlights(); toast("Highlight saved");
+};
+$("dHighlights").addEventListener("click", async e => {
+  const b = e.target.closest("[data-hl-del]"); if (!b) return;
+  await fetch(`/api/highlights/${b.dataset.hlDel}`, { method: "DELETE" }); showBody(); drawHighlights();
+});
+// Retranslate with a chosen engine
+$("dRetrans").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-engine]"); if (!b) return;
+  $("dRetrans").open = false; toast(`Retranslating with ${b.textContent}…`);
+  const r = await fetch(`/api/article/${cur.id}/retranslate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ engine: b.dataset.engine }) });
+  const j = await r.json();
+  if (!r.ok) return toast(j.error || "Retranslation failed");
+  Object.assign(cur, { title_en: j.title_en, excerpt_en: j.excerpt_en, translation_flag: j.translation_flag }, j.full_text_en ? { full_text_en: j.full_text_en } : {});
+  const a = all.find(x => x.id === cur.id); if (a) Object.assign(a, { title_en: j.title_en, excerpt_en: j.excerpt_en, translation_flag: j.translation_flag });
+  $("dTitle").textContent = cur.title_en; showBody(); render();
+  toast(j.translation_flag ? `Done, but it still looks off: ${j.translation_flag}` : "Retranslated");
+});
 let noteTimer;
 $("dNote").addEventListener("input", () => {
   $("dNoteState").textContent = "…";
@@ -2040,7 +2281,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-13T03:28:46.779243+00:00";
+  const updated = "2026-11-13T03:46:52.438436+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -2055,7 +2296,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-13T03:28:46.779243+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-13T03:46:52.438436+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
