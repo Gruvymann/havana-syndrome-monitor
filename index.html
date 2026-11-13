@@ -423,6 +423,7 @@
     <div class="group admin"><span class="gl">Mine</span><div class="tabs">
       <button data-view="collections">Collections</button>
       <button data-view="foia">FOIA requests <span class="badge" id="foiaBadge" hidden></span></button>
+      <button data-view="compendium">Compendium updates</button>
       <button data-view="health">Source health <span class="badge" id="healthBadge" hidden></span></button></div></div>
     <button data-view="compare" hidden></button><button data-view="about" hidden></button>
   </nav>
@@ -435,6 +436,7 @@
         <option value="government">Government</option><option value="congress">Congress (bills, hearings, record)</option>
         <option value="court">Court cases and filings</option><option value="documents">Documents (FOIA, declassified)</option>
         <option value="spending">Spending (contracts, grants)</option><option value="patent">Patents</option>
+        <option value="factcheck">Fact-checks</option>
         <option value="research">Research</option>
         <option value="social">Social (Telegram, Reddit, Bluesky, Mastodon)</option>
         <option value="podcast">Podcasts</option>
@@ -553,23 +555,24 @@ const ICONS = {
   court: '<path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z"/>',
   flask: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
   chat: '<path d="M4 5h16v11H8l-4 4z"/>',
+  check: '<path d="M4 12l5 5L20 6"/>',
   dollar: '<path d="M12 2v20M17 6.5C17 4.6 14.8 4 12 4S7 5 7 7.5 9.5 10.5 12 11s5 1.5 5 4-2.2 3.5-5 3.5-5-.9-5-3"/>',
   bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
   capitol: '<path d="M3 21h18M6 21v-8M18 21v-8M10 21v-8M14 21v-8M4 13h16M6 13a6 6 0 0 1 12 0M12 4v3"/>',
 };
 const icon = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 const KIND_ICON = { government: "gov", congress: "capitol", court: "court", research: "flask", documents: "doc", social: "chat", podcast: "audio",
-                    spending: "dollar", patent: "bulb" };
+                    spending: "dollar", patent: "bulb", factcheck: "check" };
 const PIN_ICON = { place: "pin", entity: "user", claim: "scale" };
 const MILESTONES = [{"date": "2026-09-01", "label": "Sep 2026", "precision": "month", "text": "Walter Reed study in *Frontiers in Neurology*: 40 AHI patients improved on a cognitive test battery after BrainHQ training (uncontrolled, retrospective; [press release](https://www.globenewswire.com/news-release/2026/09/29/3370416/0/en/pentagon-pivots-on-havana-syndrome-with-re-branding-compensation-and-a-new-study.html) from the product\u0027s maker)."}, {"date": "2026-07-10", "label": "Jul 10, 2026", "precision": "day", "text": "Pentagon pays first HAVANA Act compensation (nearly $3M) and renames its team the Directed Energy Bio-Effects CFT ([DefenseScoop](https://defensescoop.com/2026/07/13/havana-syndrome-payments-directed-energy-bio-effects/))."}, {"date": "2026-06-01", "label": "Jun 2026", "precision": "month", "text": "DNI Gabbard rescinds the 2023 and 2025 IC assessments, citing suppressed analysis and a flawed medical study ([CNN via CP24](https://www.cp24.com/news/world/2026/06/12/gabbard-rescinds-biden-era-intel-assessments-that-were-skeptical-about-havana-syndrome/))."}, {"date": "2026-03-01", "label": "Mar 2026", "precision": "month", "text": "60 Minutes reports the device was bought from a \"Russian criminal network\" for about $15M, can reach targets \"hundreds of feet away,\" and produced similar injuries in animal tests (anonymous sources; [Defense Post](https://thedefensepost.com/2026/03/12/us-havana-syndrome-weapon/amp/))."}, {"date": "2026-02-01", "label": "Feb 2026", "precision": "month", "text": "AHI team moves from Pentagon Policy to Research \u0026 Engineering, focused on treatments and countermeasures ([DefenseScoop](https://defensescoop.com/2026/02/24/havana-syndrome-defense-department-anomalous-health-incidents-ahi-cft/))."}, {"date": "2026-02-01", "label": "Feb 2026", "precision": "month", "text": "Washington Post: a Norwegian government scientist self-tested a microwave-pulse device in 2024 and developed AHI-like symptoms ([Stars and Stripes](https://www.stripes.com/theaters/europe/2026-02-14/pentagon-havana-syndrome-experiment-norway-20740362.html))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "Trump says a secret \"discombobulator\" was used in the raid that captured Maduro; no official description given ([Newsweek](https://newsweek.com/the-discombobulator-does-trumps-secret-weapon-really-exist-11416698))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "CNN reveals Homeland Security Investigations bought a pulsed-RF device with Russian parts in late 2024; the Pentagon has been testing it ([CBS News](https://www.cbsnews.com/news/havana-syndrome-device-what-to-know/))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "Michael Beck, reportedly among the first to report symptoms, dies at 65."}, {"date": "2025-01-10", "label": "Jan 10, 2025", "precision": "day", "text": "Updated IC assessment: most agencies still say \"very unlikely\"; two shift on foreign capability ([ODNI](https://archive.dni.gov/files/ODNI/documents/assessments/NIC-Unclassified-ICA-Updated-Assessment-AHI-December2024.pdf))."}, {"date": "2024-12-01", "label": "Dec 2024", "precision": "month", "text": "House Intelligence subcommittee interim report says the 2023 assessment lacked analytic integrity ([HPSCI](https://intelligence.house.gov/2024/12/05/crawford-cia-subcommittee-release-interim-report-on-havana-syndrome))."}, {"date": "2024-10-01", "label": "Late 2024", "precision": "season", "text": "US covertly acquires the pulsed-RF device. Pentagon and White House officials visit Norway about the self-test."}, {"date": "2024-09-01", "label": "Sep 2024", "precision": "month", "text": "NIH ends its AHI research protocol after a coercion allegation (the CIA denied it)."}, {"date": "2024-07-01", "label": "Jul 2024", "precision": "month", "text": "GAO reports 334 people qualified for DoD AHI health care."}, {"date": "2024-03-01", "label": "Mar 2024", "precision": "month", "text": "NIH studies published in *JAMA*: no MRI-detectable brain injury. The Insider / 60 Minutes / Der Spiegel link GRU Unit 29155 to incidents."}, {"date": "2023-03-01", "label": "Mar 1, 2023", "precision": "day", "text": "IC assessment: five of seven agencies judge foreign involvement \"very unlikely.\""}, {"date": "2022-02-01", "label": "Feb 2022", "precision": "month", "text": "IC Experts Panel: pulsed electromagnetic energy and ultrasound plausible for \"core\" cases. JASON report released."}, {"date": "2022-01-01", "label": "Jan 2022", "precision": "month", "text": "CIA interim report on about 1,000 cases: most explained by other causes; about two dozen unresolved."}, {"date": "2021-10-08", "label": "Oct 8, 2021", "precision": "day", "text": "HAVANA Act signed into law."}, {"date": "2021-01-01", "label": "2021", "precision": "year", "text": "Clusters in Vienna (dozens), Berlin, Bogot\u00e1, Hanoi (before VP Harris\u0027s visit), and India (CIA Director Burns\u0027s trip). Over 200 reported cases by September."}, {"date": "2020-12-01", "label": "Dec 2020", "precision": "month", "text": "National Academies report names directed, pulsed RF energy the most plausible mechanism."}, {"date": "2020-11-01", "label": "Nov 2020", "precision": "month", "text": "Incident reported on the Ellipse near the White House."}, {"date": "2019-01-01", "label": "2019", "precision": "year", "text": "Recordings attributed to the Indies short-tailed cricket; second Penn imaging study (JAMA); CDC report finds no mechanism."}, {"date": "2018-01-01", "label": "2018", "precision": "year", "text": "First Penn study (JAMA, 21 patients) describes a concussion-like syndrome. Cases in Guangzhou, China. FBI finds no evidence of a sonic attack."}, {"date": "2017-08-01", "label": "Aug\u2013Oct 2017", "precision": "month", "text": "Cases made public. US expels Cuban diplomats and cuts embassy staff."}, {"date": "2016-10-01", "label": "Late 2016", "precision": "season", "text": "First US and Canadian diplomats in Havana report sounds, pressure, and illness."}];
 const DATASET_LICENSE = null;
 const PRIMARY = ["government", "congress", "court", "research", "documents", "spending", "patent"];
 const KIND_LABEL = { government: "government", congress: "Congress", court: "court", research: "research", documents: "document",
-                     spending: "spending", patent: "patent" };
+                     spending: "spending", patent: "patent", factcheck: "fact-check" };
 let COLLS = [];   // [{id, name, n}] — local dashboard only
 const REL_SHORT = { gr: "reliable", nc: "no consensus", m: "rating varies", gu: "unreliable", d: "deprecated", b: "blacklisted" };
 let BILLS = null, WIKI = null, SIGNALS = null, HEALTH = null, COMP = null, DOCKETS = null;
-const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T02:32:28.108757+00:00") : `/api/${name}`;
+const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T03:28:46.779243+00:00") : `/api/${name}`;
 // "New since your last visit": the visit before this one stays the baseline for this whole browser session.
 let lastVisit = null;
 try {
@@ -620,7 +623,7 @@ async function loadCollections() {
 
 async function load() {
   // The public copy's data URL carries the publish time, so browsers never pair a new page with stale cached data.
-  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T02:32:28.108757+00:00") : "/api/articles")).json();
+  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T03:28:46.779243+00:00") : "/api/articles")).json();
   const on = all.filter(a => !a.offtopic);
   COPY_COUNT = countBy(all, a => a.wire_group);
   FIRST_COPY = new Set(Object.values(all.filter(a => a.wire_group).reduce((m, a) => {
@@ -695,13 +698,13 @@ function render() {
   ({ briefing: renderBriefing, articles: renderArticles, stories: renderStories, timeline: renderTimeline, countries: renderCountries, claims: renderClaims,
      map: renderMap, people: renderPeople, alerts: renderAlerts, collections: renderCollections,
      bills: renderBills, cases: renderCases, spending: renderSpending, signals: renderSignals, health: renderHealth,
-     foia: renderFoia, compare: renderCompare, about: renderAbout })[view]();
+     foia: renderFoia, compare: renderCompare, about: renderAbout, compendium: renderCompendium })[view]();
   if (!$("chartsBox").hidden) drawCharts();
   writeHash();
 }
 
 // ---------- active filter chips and the "More filters" panel ----------
-const NO_FILTER_VIEWS = ["briefing", "bills", "cases", "spending", "signals", "collections", "health", "foia", "compare", "about"];
+const NO_FILTER_VIEWS = ["briefing", "bills", "cases", "spending", "signals", "collections", "health", "foia", "compare", "about", "compendium"];
 const SELECT_LABEL = { kind: "Type", lang: "Language", range: "Date", country: "Country", source: "Source", rel: "Reliability", linkst: "Link", coll: "", comp: "" };
 const CHECK_LABEL = { newOnly: "New since last visit", starred: "Starred", foreign: "Non-English", stateOnly: "State media", showOff: "Including off-topic",
                       hideCopies: "No duplicate copies" };
@@ -782,7 +785,7 @@ function writeHash() {
 function readHash() {
   const p = new URLSearchParams(location.hash.slice(1));
   view = p.get("v") || "briefing";
-  if (!document.querySelector(`#nav button[data-view="${view}"]`) || (STATIC && ["collections", "health", "foia"].includes(view))) view = "briefing";
+  if (!document.querySelector(`#nav button[data-view="${view}"]`) || (STATIC && ["collections", "health", "foia", "compendium"].includes(view))) view = "briefing";
   subview = { ...DEFAULT_SUB };
   if (p.get("sub") && view in DEFAULT_SUB) subview[view] = p.get("sub");
   compareId = +p.get("story") || null;
@@ -966,10 +969,25 @@ document.addEventListener("click", e => {
 function subtabs(v, tabs) {
   return `<div class="subtabs" role="tablist">${tabs.map(([k, label]) => `<button data-sub="${k}" class="${subview[v] === k ? "on" : ""}">${label}</button>`).join("")}</div>`;
 }
+const CLAIM_TABS = [["claims", "Claims"], ["numbers", "Reported numbers"], ["factchecks", "Fact-checks"]];
 function renderClaims() {
   if (subview.claims === "numbers") return renderNumbers();
+  if (subview.claims === "factchecks") return renderFactchecks();
   renderClaimCards();
-  $("view").insertAdjacentHTML("afterbegin", subtabs("claims", [["claims", "Claims"], ["numbers", "Reported numbers"]]));
+  $("view").insertAdjacentHTML("afterbegin", subtabs("claims", CLAIM_TABS));
+}
+function renderFactchecks() {
+  const fcs = filtered.filter(a => a.kind === "factcheck").sort((a, b) => dateOf(b).localeCompare(dateOf(a)));
+  $("count").innerHTML = `${fcs.length} fact-check${fcs.length === 1 ? "" : "s"}`;
+  $("view").innerHTML = subtabs("claims", CLAIM_TABS) +
+    `<p class="note">Fact-checks about Havana Syndrome, AHIs, “sonic attacks” and directed-energy weapons aimed at people, from the public ClaimReview feed
+      that powers Google's Fact Check Explorer (checked weekly) and from fact-checking sites. Verdicts are the fact-checker's own wording; fact-checks on this
+      topic are rare. Tracked claims a fact-check addresses are linked on the Claims cards.</p>
+    <div class="list">${fcs.map(a => `<div class="card" data-id="${a.id}"><div class="meta">${cardMeta(a)}</div>
+      <h2>${esc(a.meta?.claim ? "“" + a.meta.claim + "”" : (a.title_en || a.title))}</h2>
+      ${a.meta?.verdict ? `<div><b>Verdict:</b> ${esc(a.meta.verdict)}${a.meta.claimant ? ` <span class="sub">· claim by ${esc(a.meta.claimant)}</span>` : ""}</div>` : ""}
+      ${a.lang !== "en" && a.title_en ? `<div class="orig">${esc(a.title_en)}</div>` : ""}</div>`).join("")
+      || `<div class="empty">No fact-checks in the current filter.</div>`}</div>`;
 }
 function renderClaimCards() {
   const months = [];
@@ -984,7 +1002,8 @@ function renderClaimCards() {
     arts.forEach(a => { const k = a.country || "Unknown"; byCountry[k] = byCountry[k] || { r: 0, d: 0 }; byCountry[k][a.claims[c.id] === "disputes" ? "d" : "r"]++; });
     const topCountries = Object.entries(byCountry).sort((a, b) => (b[1].r + b[1].d) - (a[1].r + a[1].d)).slice(0, 6);
     const langs = new Set(arts.map(a => a.lang)).size, stateN = arts.filter(a => a.state_media).length;
-    return { c, arts, doubt, first, last, spark: months.map(m => byMonth[m] || 0), topCountries, langs, stateN };
+    const fcs = arts.filter(a => a.kind === "factcheck");
+    return { c, arts, doubt, first, last, spark: months.map(m => byMonth[m] || 0), topCountries, langs, stateN, fcs };
   }).sort((a, b) => b.arts.length - a.arts.length);
   $("count").innerHTML = `${CLAIMS.length} tracked claims across ${filtered.length} articles`;
   const r = cssVar("--accent"), d = cssVar("--skeptic");
@@ -1003,6 +1022,7 @@ function renderClaimCards() {
         <div><div class="sub">By country (reporting / doubt)</div>${k.topCountries.map(([name, v]) =>
           `<div class="crow"><span>${esc(name)}</span><span class="bar small"><span style="width:${100 * v.r / (v.r + v.d)}%;background:${r}"></span><span style="width:${100 * v.d / (v.r + v.d)}%;background:${d}"></span></span><span class="sub">${v.r}/${v.d}</span></div>`).join("")}</div>
       </div>
+      ${k.fcs.length ? `<div class="sub" style="margin:4px 0 8px">Fact-checks: ${k.fcs.map(a => `<a href="#" data-open="${a.id}">${esc(a.source)}${a.meta?.verdict ? " — " + esc(a.meta.verdict) : ""}</a>`).join(" · ")}</div>` : ""}
       <div class="btns"><button data-claim="${k.c.id}">All ${k.arts.length} articles</button>
         <button data-claim="${k.c.id}" data-stance="reports">Reporting</button>
         ${k.doubt.length ? `<button data-claim="${k.c.id}" data-stance="disputes">Doubt or denial (${k.doubt.length})</button>` : ""}</div>`
@@ -1348,6 +1368,38 @@ async function renderFoia() {
     await loadFoia(); render(); });
 }
 
+// ---------- Compendium updates (local only) ----------
+let COMP_SUG = null, compSince = "";
+async function renderCompendium() {
+  if (!COMP_SUG || COMP_SUG.since !== (compSince || COMP_SUG.since)) {
+    $("view").innerHTML = `<div class="empty">Looking for what's new since your compendium's last edit…</div>`;
+    COMP_SUG = await (await fetch("/api/compendium/suggestions" + (compSince ? "?since=" + compSince : ""))).json();
+    if (view !== "compendium") return;
+  }
+  const total = COMP_SUG.groups.reduce((n, g) => n + g.rows.length, 0);
+  $("count").innerHTML = `${total} suggestions since ${fmt(COMP_SUG.since)}`;
+  $("view").innerHTML = `<p class="note">Events since <label>
+      <input type="date" id="compSince" value="${esc(COMP_SUG.since)}"></label> (default: your compendium's last edit) that the compendium doesn't link to yet,
+      written as rows for its <b>Timeline</b> table (| Date | Event |). Tick the ones worth keeping, copy, and paste them into the table (newest first),
+      then edit the wording. Major stories need 4+ independent outlets.</p>
+    <div class="btns" style="margin-bottom:12px"><button class="primary" id="compCopy">Copy ticked rows</button><button id="compAll">Tick all</button><button id="compNone">Untick all</button></div>
+    ${COMP_SUG.groups.map((g, gi) => `<div class="panel" style="margin-bottom:12px"><h3>${esc(g.name)} <span class="sub">${g.rows.length}</span></h3>
+      ${g.rows.map((r, ri) => `<div class="brow" style="cursor:default;align-items:flex-start"><input type="checkbox" class="compRow" data-g="${gi}" data-r="${ri}" ${gi === 0 ? "checked" : ""}>
+        <span class="d">${fmt(r.date)}</span><span><span class="t">${esc(r.text)}</span>
+        <br><a href="${esc(r.url)}" target="_blank" rel="noopener" class="sub">${esc(r.source)}</a>
+        <br><code class="sub" style="font-size:11px">${esc(r.md)}</code></span></div>`).join("")}</div>`).join("") || `<div class="empty">Nothing new since ${fmt(COMP_SUG.since)} that the compendium doesn't already cover.</div>`}`;
+  $("compSince").onchange = e => { compSince = e.target.value; COMP_SUG = null; render(); };
+  $("compAll").onclick = () => document.querySelectorAll(".compRow").forEach(c => c.checked = true);
+  $("compNone").onclick = () => document.querySelectorAll(".compRow").forEach(c => c.checked = false);
+  $("compCopy").onclick = async () => {
+    const rows = [...document.querySelectorAll(".compRow:checked")].map(c => COMP_SUG.groups[+c.dataset.g].rows[+c.dataset.r])
+      .sort((a, b) => b.date.localeCompare(a.date)).map(r => r.md);
+    if (!rows.length) return toast("Tick at least one row");
+    try { await navigator.clipboard.writeText(rows.join("\n")); toast(`${rows.length} row${rows.length > 1 ? "s" : ""} copied — paste into the Timeline table`); }
+    catch (e) { prompt("Copy these rows:", rows.join("\n")); }
+  };
+}
+
 // ---------- About ----------
 function renderAbout() {
   const on = all.filter(a => !a.offtopic), by = countBy(on, a => a.kind);
@@ -1367,6 +1419,7 @@ function renderAbout() {
       <li><b>Courts</b> (${n("court")}): CourtListener dockets, followed for new filings.</li>
       <li><b>Documents</b> (${n("documents")}): FOIA releases and other records on DocumentCloud.</li>
       <li><b>Research</b> (${n("research")}): PubMed and OpenAlex. <b>Spending</b> (${n("spending")}): USAspending.gov. <b>Patents</b> (${n("patent")}): Google Patents.</li>
+      <li><b>Fact-checks</b> (${n("factcheck")}): the public ClaimReview feed behind Google's Fact Check Explorer, and fact-checking sites.</li>
       <li><b>Wikipedia</b>: edits to the Havana syndrome article in about 40 languages; the community's reliable-sources list for outlet ratings.</li>
     </ul>
     <h2>How it works, and its limits</h2>
@@ -1763,7 +1816,7 @@ $("tagChips").addEventListener("click", e => {
 
 // Weekly digests saved by the server in digests/
 async function loadDigests() {
-  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T02:32:28.108757+00:00") : "/api/digests")).json();
+  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T03:28:46.779243+00:00") : "/api/digests")).json();
   $("savedDigests").innerHTML = `<option value="">Weekly digests (${names.length})…</option>` +
     names.map(n => `<option value="${esc(n)}">${esc(n.replace("havana-weekly-", "Week of ").replace(".md", ""))}</option>`).join("");
 }
@@ -1987,7 +2040,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-13T02:32:28.108757+00:00";
+  const updated = "2026-11-13T03:28:46.779243+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -2002,7 +2055,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-13T02:32:28.108757+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-13T03:28:46.779243+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
