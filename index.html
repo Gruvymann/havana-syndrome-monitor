@@ -153,6 +153,8 @@
   .flag.media { background: var(--accent-soft); color: var(--accent); }
   .flag.state { color: var(--mixed); border: 1px solid var(--mixed); }
   .flag.off { border: 1px dashed var(--line); color: var(--muted); }
+  .flag.changed { border: 1px solid var(--text); color: var(--text); }
+  .notice { border: 1px solid var(--line); border-left: 3px solid var(--text); border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; font-size: 13px; }
   .rel { display: inline-flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 600; }
   .rel i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: currentColor; }
   .rel.gr { color: var(--rel-good); } .rel.nc, .rel.m { color: var(--rel-mid); }
@@ -374,6 +376,10 @@
         <b>By email</b> <span class="sub">Through Blogtrottr, a free RSS-to-email service (you sign up there)</span>
         <a id="emailDigest" target="_blank" rel="noopener">Email me the weekly digest</a>
         <a id="emailAlerts" target="_blank" rel="noopener">Email me alerts</a>
+        <b>Open data</b> <span class="sub">Titles, links, dates and labels for every item (no article text)</span>
+        <a id="dataCsv" target="_blank" rel="noopener">Download CSV</a>
+        <a id="dataJson" target="_blank" rel="noopener">Download JSON</a>
+        <a id="dataReadme" target="_blank" rel="noopener">About the dataset (fields, license, citation)</a>
       </div></details>
   </div>
 </header>
@@ -453,6 +459,9 @@
           <option value="nc">No consensus or varies by topic</option><option value="bad">Unreliable or deprecated outlets</option>
           <option value="none">Outlet not rated</option></select>
         <select id="coll" class="admin" aria-label="Collection"><option value="">All items</option></select>
+        <select id="linkst" aria-label="Link status" title="From rechecking articles after publication">
+          <option value="">Any link status</option><option value="corrected">Corrected or updated later</option>
+          <option value="removed">Taken down (archived copy)</option></select>
         <select id="comp" class="admin" aria-label="Compendium" title="Compared with your research compendium">
           <option value="">Compendium: any</option><option value="cited">Cited in my compendium</option>
           <option value="newer">Newer than my compendium, not cited</option>
@@ -465,6 +474,7 @@
         <label><input type="checkbox" id="stateOnly"> State media only</label>
         <label><input type="checkbox" id="showOff"> Include off-topic</label>
         <label><input type="checkbox" id="showOrig"> Show original titles</label>
+        <label title="Keep only the earliest of articles that republish the same text"><input type="checkbox" id="hideCopies"> Hide duplicate wire copies</label>
       </div>
       <h4>Topics</h4>
       <div class="chips" id="tagChips"></div>
@@ -552,13 +562,14 @@ const KIND_ICON = { government: "gov", congress: "capitol", court: "court", rese
                     spending: "dollar", patent: "bulb" };
 const PIN_ICON = { place: "pin", entity: "user", claim: "scale" };
 const MILESTONES = [{"date": "2026-09-01", "label": "Sep 2026", "precision": "month", "text": "Walter Reed study in *Frontiers in Neurology*: 40 AHI patients improved on a cognitive test battery after BrainHQ training (uncontrolled, retrospective; [press release](https://www.globenewswire.com/news-release/2026/09/29/3370416/0/en/pentagon-pivots-on-havana-syndrome-with-re-branding-compensation-and-a-new-study.html) from the product\u0027s maker)."}, {"date": "2026-07-10", "label": "Jul 10, 2026", "precision": "day", "text": "Pentagon pays first HAVANA Act compensation (nearly $3M) and renames its team the Directed Energy Bio-Effects CFT ([DefenseScoop](https://defensescoop.com/2026/07/13/havana-syndrome-payments-directed-energy-bio-effects/))."}, {"date": "2026-06-01", "label": "Jun 2026", "precision": "month", "text": "DNI Gabbard rescinds the 2023 and 2025 IC assessments, citing suppressed analysis and a flawed medical study ([CNN via CP24](https://www.cp24.com/news/world/2026/06/12/gabbard-rescinds-biden-era-intel-assessments-that-were-skeptical-about-havana-syndrome/))."}, {"date": "2026-03-01", "label": "Mar 2026", "precision": "month", "text": "60 Minutes reports the device was bought from a \"Russian criminal network\" for about $15M, can reach targets \"hundreds of feet away,\" and produced similar injuries in animal tests (anonymous sources; [Defense Post](https://thedefensepost.com/2026/03/12/us-havana-syndrome-weapon/amp/))."}, {"date": "2026-02-01", "label": "Feb 2026", "precision": "month", "text": "AHI team moves from Pentagon Policy to Research \u0026 Engineering, focused on treatments and countermeasures ([DefenseScoop](https://defensescoop.com/2026/02/24/havana-syndrome-defense-department-anomalous-health-incidents-ahi-cft/))."}, {"date": "2026-02-01", "label": "Feb 2026", "precision": "month", "text": "Washington Post: a Norwegian government scientist self-tested a microwave-pulse device in 2024 and developed AHI-like symptoms ([Stars and Stripes](https://www.stripes.com/theaters/europe/2026-02-14/pentagon-havana-syndrome-experiment-norway-20740362.html))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "Trump says a secret \"discombobulator\" was used in the raid that captured Maduro; no official description given ([Newsweek](https://newsweek.com/the-discombobulator-does-trumps-secret-weapon-really-exist-11416698))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "CNN reveals Homeland Security Investigations bought a pulsed-RF device with Russian parts in late 2024; the Pentagon has been testing it ([CBS News](https://www.cbsnews.com/news/havana-syndrome-device-what-to-know/))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "Michael Beck, reportedly among the first to report symptoms, dies at 65."}, {"date": "2025-01-10", "label": "Jan 10, 2025", "precision": "day", "text": "Updated IC assessment: most agencies still say \"very unlikely\"; two shift on foreign capability ([ODNI](https://archive.dni.gov/files/ODNI/documents/assessments/NIC-Unclassified-ICA-Updated-Assessment-AHI-December2024.pdf))."}, {"date": "2024-12-01", "label": "Dec 2024", "precision": "month", "text": "House Intelligence subcommittee interim report says the 2023 assessment lacked analytic integrity ([HPSCI](https://intelligence.house.gov/2024/12/05/crawford-cia-subcommittee-release-interim-report-on-havana-syndrome))."}, {"date": "2024-10-01", "label": "Late 2024", "precision": "season", "text": "US covertly acquires the pulsed-RF device. Pentagon and White House officials visit Norway about the self-test."}, {"date": "2024-09-01", "label": "Sep 2024", "precision": "month", "text": "NIH ends its AHI research protocol after a coercion allegation (the CIA denied it)."}, {"date": "2024-07-01", "label": "Jul 2024", "precision": "month", "text": "GAO reports 334 people qualified for DoD AHI health care."}, {"date": "2024-03-01", "label": "Mar 2024", "precision": "month", "text": "NIH studies published in *JAMA*: no MRI-detectable brain injury. The Insider / 60 Minutes / Der Spiegel link GRU Unit 29155 to incidents."}, {"date": "2023-03-01", "label": "Mar 1, 2023", "precision": "day", "text": "IC assessment: five of seven agencies judge foreign involvement \"very unlikely.\""}, {"date": "2022-02-01", "label": "Feb 2022", "precision": "month", "text": "IC Experts Panel: pulsed electromagnetic energy and ultrasound plausible for \"core\" cases. JASON report released."}, {"date": "2022-01-01", "label": "Jan 2022", "precision": "month", "text": "CIA interim report on about 1,000 cases: most explained by other causes; about two dozen unresolved."}, {"date": "2021-10-08", "label": "Oct 8, 2021", "precision": "day", "text": "HAVANA Act signed into law."}, {"date": "2021-01-01", "label": "2021", "precision": "year", "text": "Clusters in Vienna (dozens), Berlin, Bogot\u00e1, Hanoi (before VP Harris\u0027s visit), and India (CIA Director Burns\u0027s trip). Over 200 reported cases by September."}, {"date": "2020-12-01", "label": "Dec 2020", "precision": "month", "text": "National Academies report names directed, pulsed RF energy the most plausible mechanism."}, {"date": "2020-11-01", "label": "Nov 2020", "precision": "month", "text": "Incident reported on the Ellipse near the White House."}, {"date": "2019-01-01", "label": "2019", "precision": "year", "text": "Recordings attributed to the Indies short-tailed cricket; second Penn imaging study (JAMA); CDC report finds no mechanism."}, {"date": "2018-01-01", "label": "2018", "precision": "year", "text": "First Penn study (JAMA, 21 patients) describes a concussion-like syndrome. Cases in Guangzhou, China. FBI finds no evidence of a sonic attack."}, {"date": "2017-08-01", "label": "Aug\u2013Oct 2017", "precision": "month", "text": "Cases made public. US expels Cuban diplomats and cuts embassy staff."}, {"date": "2016-10-01", "label": "Late 2016", "precision": "season", "text": "First US and Canadian diplomats in Havana report sounds, pressure, and illness."}];
+const DATASET_LICENSE = null;
 const PRIMARY = ["government", "congress", "court", "research", "documents", "spending", "patent"];
 const KIND_LABEL = { government: "government", congress: "Congress", court: "court", research: "research", documents: "document",
                      spending: "spending", patent: "patent" };
 let COLLS = [];   // [{id, name, n}] — local dashboard only
 const REL_SHORT = { gr: "reliable", nc: "no consensus", m: "rating varies", gu: "unreliable", d: "deprecated", b: "blacklisted" };
 let BILLS = null, WIKI = null, SIGNALS = null, HEALTH = null, COMP = null, DOCKETS = null;
-const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T02:18:20.553123+00:00") : `/api/${name}`;
+const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T02:31:28.242722+00:00") : `/api/${name}`;
 // "New since your last visit": the visit before this one stays the baseline for this whole browser session.
 let lastVisit = null;
 try {
@@ -572,7 +583,13 @@ try {
 const isNew = a => !!lastVisit && (a.added_at || "") > lastVisit;
 const collName = id => COLLS.find(c => c.id === id)?.name || "";
 let all = [], filtered = [], activeTags = new Set(), charts = {}, view = "briefing";
-let subview = { people: "table", claims: "claims" }, compareId = null, FOIA = null;
+const DEFAULT_SUB = { people: "table", claims: "claims", alerts: "alerts" };
+let subview = { ...DEFAULT_SUB }, compareId = null, FOIA = null;
+let COPY_COUNT = {}, FIRST_COPY = new Set();
+// Independent outlets: articles republishing the same text count once.
+const independent = items => new Set(items.map(a => a.wire_group ? "g" + a.wire_group : "a" + a.id)).size;
+const outletsLabel = items => { const n = items.length, k = independent(items);
+  return `${n} outlet${n > 1 ? "s" : ""}${k < n ? ` <span class="sub" title="Articles republishing the same wire text count once">(${k} independent)</span>` : ""}`; };
 let hits = null;             // full-text search results: Map id -> snippet, or null when not searching
 let pin = { place: "", entity: "", claim: "", stance: "" };  // filters set from the Map, People and Claims views
 const $ = id => document.getElementById(id);
@@ -603,8 +620,11 @@ async function loadCollections() {
 
 async function load() {
   // The public copy's data URL carries the publish time, so browsers never pair a new page with stale cached data.
-  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T02:18:20.553123+00:00") : "/api/articles")).json();
+  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T02:31:28.242722+00:00") : "/api/articles")).json();
   const on = all.filter(a => !a.offtopic);
+  COPY_COUNT = countBy(all, a => a.wire_group);
+  FIRST_COPY = new Set(Object.values(all.filter(a => a.wire_group).reduce((m, a) => {
+    if (!m[a.wire_group] || dateOf(a) < dateOf(m[a.wire_group])) m[a.wire_group] = a; return m; }, {})).map(a => a.id));
   fillSelect("lang", "All languages", countBy(on, a => a.lang), l => LANGS[l] || l);
   fillSelect("country", "All countries", countBy(on, a => a.country));
   fillSelect("source", "All sources", countBy(on, a => a.source));
@@ -638,10 +658,14 @@ function applyFilters() {
     (!country || a.country === country) && (!cutoff || new Date(dateOf(a)) > cutoff) &&
     (!$("starred").checked || a.starred) && (!$("foreign").checked || a.lang !== "en") &&
     (!$("stateOnly").checked || a.state_media) && collOk(a) && relOk(a) && compOk(a) &&
-    (!$("newOnly").checked || isNew(a)) &&
+    (!$("newOnly").checked || isNew(a)) && linkOk(a) && (!$("hideCopies").checked || !a.wire_group || FIRST_COPY.has(a.id)) &&
     [...activeTags].every(t => a.tags.includes(t)));
 }
 
+function linkOk(a) {
+  const v = $("linkst").value; if (!v) return true;
+  return v === "corrected" ? !!a.correction : ["gone", "moved"].includes(a.link_status);
+}
 function relOk(a) {
   const r = $("rel").value; if (!r) return true;
   const st = a.reliability?.status;
@@ -678,9 +702,10 @@ function render() {
 
 // ---------- active filter chips and the "More filters" panel ----------
 const NO_FILTER_VIEWS = ["briefing", "bills", "cases", "spending", "signals", "collections", "health", "foia", "compare", "about"];
-const SELECT_LABEL = { kind: "Type", lang: "Language", range: "Date", country: "Country", source: "Source", rel: "Reliability", coll: "", comp: "" };
-const CHECK_LABEL = { newOnly: "New since last visit", starred: "Starred", foreign: "Non-English", stateOnly: "State media", showOff: "Including off-topic" };
-const MORE_IDS = ["country", "source", "rel", "coll", "comp", "newOnly", "starred", "foreign", "stateOnly", "showOff"];
+const SELECT_LABEL = { kind: "Type", lang: "Language", range: "Date", country: "Country", source: "Source", rel: "Reliability", linkst: "Link", coll: "", comp: "" };
+const CHECK_LABEL = { newOnly: "New since last visit", starred: "Starred", foreign: "Non-English", stateOnly: "State media", showOff: "Including off-topic",
+                      hideCopies: "No duplicate copies" };
+const MORE_IDS = ["country", "source", "rel", "linkst", "coll", "comp", "newOnly", "starred", "foreign", "stateOnly", "showOff", "hideCopies"];
 function activeFilters() {
   const out = [];
   if ($("q").value.trim()) out.push({ key: "q", label: `Search: “${$("q").value.trim()}”` });
@@ -703,7 +728,7 @@ function renderActive() {
   $("moreCount").hidden = !inMore; $("moreCount").textContent = inMore;
 }
 function clearFilter(key) {
-  if (key === "*") { ["q", "kind", "lang", "range", "country", "source", "rel", "coll", "comp"].forEach(id => $(id).value = "");
+  if (key === "*") { ["q", "kind", "lang", "range", "country", "source", "rel", "linkst", "coll", "comp"].forEach(id => $(id).value = "");
     Object.keys(CHECK_LABEL).forEach(id => $(id).checked = false); activeTags.clear(); pin = { place: "", entity: "", claim: "", stance: "" }; hits = null; }
   else if (key === "q") { $("q").value = ""; hits = null; }
   else if (key.startsWith("tag:")) activeTags.delete(key.slice(4));
@@ -736,14 +761,14 @@ $("chartsToggle").onclick = () => {
 };
 
 // ---------- shareable links: the view, filters, search and open article live in the address ----------
-const HASH_SELECTS = { kind: "kind", lang: "lang", range: "range", country: "country", source: "src", rel: "rel" };
-const HASH_CHECKS = { newOnly: "new", foreign: "foreign", stateOnly: "state", showOff: "off", showOrig: "orig" };
+const HASH_SELECTS = { kind: "kind", lang: "lang", range: "range", country: "country", source: "src", rel: "rel", linkst: "link" };
+const HASH_CHECKS = { newOnly: "new", foreign: "foreign", stateOnly: "state", showOff: "off", showOrig: "orig", hideCopies: "nocopies" };
 let suppressHash = false;
 function writeHash() {
   if (suppressHash) return;
   const p = new URLSearchParams();
   if (view !== "briefing") p.set("v", view);
-  if (subview[view] && subview[view] !== (view === "people" ? "table" : "claims")) p.set("sub", subview[view]);
+  if (view in DEFAULT_SUB && subview[view] !== DEFAULT_SUB[view]) p.set("sub", subview[view]);
   if (view === "compare" && compareId) p.set("story", compareId);
   const q = $("q").value.trim(); if (q) p.set("q", q);
   Object.entries(HASH_SELECTS).forEach(([id, k]) => $(id).value && p.set(k, $(id).value));
@@ -758,7 +783,8 @@ function readHash() {
   const p = new URLSearchParams(location.hash.slice(1));
   view = p.get("v") || "briefing";
   if (!document.querySelector(`#nav button[data-view="${view}"]`) || (STATIC && ["collections", "health", "foia"].includes(view))) view = "briefing";
-  subview = { people: p.get("sub") && view === "people" ? p.get("sub") : "table", claims: p.get("sub") && view === "claims" ? p.get("sub") : "claims" };
+  subview = { ...DEFAULT_SUB };
+  if (p.get("sub") && view in DEFAULT_SUB) subview[view] = p.get("sub");
   compareId = +p.get("story") || null;
   Object.entries(HASH_SELECTS).forEach(([id, k]) => {
     const v = p.get(k) || "";
@@ -825,7 +851,10 @@ function cardMeta(a) {
     ${media}
     ${a.alert ? `<span class="flag alert">${icon("bell")}alert</span>` : ""}
     ${isNew(a) ? `<span class="flag new">${icon("spark")}new</span>` : ""}
-    ${a.offtopic ? `<span class="flag off">off-topic?</span>` : ""}`;
+    ${a.offtopic ? `<span class="flag off">off-topic?</span>` : ""}
+    ${a.wire ? `<span class="flag media" title="Republishes ${esc(a.wire)} copy">${esc(a.wire)} wire</span>` : ""}
+    ${a.correction ? `<span class="flag changed" title="${esc(a.correction)}">corrected later</span>` : ""}
+    ${["gone", "moved"].includes(a.link_status) ? `<span class="flag changed" title="The original link no longer works${a.archive_url ? "; an archived copy is linked" : ""}">taken down</span>` : ""}`;
 }
 // Line 3 (quiet): framing, topics, and your own research marks.
 function cardQuiet(a) {
@@ -836,6 +865,7 @@ function cardQuiet(a) {
     (a.new_names || []).length ? `<span class="mine newname" title="Not mentioned anywhere in your compendium">${icon("spark")}new to compendium: ${esc(a.new_names.slice(0, 3).join(", "))}</span>` : "",
     ...(a.collections || []).map(c => `<span class="mine">${icon("folder")}${esc(collName(c))}</span>`),
     a.note ? `<span class="mine">${icon("note")}note</span>` : "",
+    a.wire_group && COPY_COUNT[a.wire_group] > 1 ? `<span>same text as ${COPY_COUNT[a.wire_group] - 1} other outlet${COPY_COUNT[a.wire_group] > 2 ? "s" : ""}</span>` : "",
   ].filter(Boolean);
   return parts.length ? `<div class="quiet">${parts.join("")}</div>` : "";
 }
@@ -1248,7 +1278,7 @@ function renderCompare() {
     .map(([w, n]) => [w, Math.log((n + .5) / (groups[g].length + 1)) - Math.log((totals[w] - n + .5) / (items.length - groups[g].length + 1))])
     .sort((a, b) => b[1] - a[1]).slice(0, 7).map(x => x[0]);
   const color = f => cssVar("--" + f);
-  $("count").innerHTML = `${items.length} articles · ${order.length} regions <button id="cmpBack">← Back to stories</button>`;
+  $("count").innerHTML = `${items.length} articles (${independent(items)} independent) · ${order.length} regions <button id="cmpBack">← Back to stories</button>`;
   $("cmpBack").onclick = () => { view = "stories"; setTab(); render(); };
   $("view").innerHTML = `<div class="brief-hero"><h2 style="font-size:19px">${esc(lead.title_en || lead.title)}</h2>
       <p>How outlets in each region covered this story. <b>Distinctive words</b> are far more common in that region's headlines and opening lines than elsewhere,
@@ -1352,6 +1382,11 @@ function renderAbout() {
     <h2>What's published here</h2>
     <p>Titles, short excerpts and links, never full article text; every item links to its original. Nothing on this page tracks visitors; “new since your last visit” is remembered only in your own browser.
       Subscribe through the RSS feeds or email links in the Subscribe menu.</p>
+    <h2>Download the data</h2>
+    <p>Every item's title, link, date, source and labels are available as <a href="${FEED_BASE}data/dataset.csv">CSV</a> or
+      <a href="${FEED_BASE}data/dataset.json">JSON</a> (no article text; see <a href="${FEED_BASE}data/DATASET.md">fields and notes</a>).
+      ${DATASET_LICENSE ? `The compilation and labels are licensed under ${esc(DATASET_LICENSE)}.` : "No license for reuse has been set yet."}
+      Headlines and the linked articles belong to their publishers.</p>
   </div>`;
 }
 
@@ -1503,7 +1538,7 @@ async function renderBriefing() {
   const storyCard = s => {
     const ls = [...new Set(s.items.map(a => a.lang))], cs = [...new Set(s.items.map(a => a.country).filter(Boolean))];
     return `<div class="card story-card" data-open="${s.lead.id}">
-      <div class="meta"><b>${s.items.length} outlets</b><span>${ls.length} language${ls.length > 1 ? "s" : ""}</span>
+      <div class="meta"><b>${outletsLabel(s.items)}</b><span>${ls.length} language${ls.length > 1 ? "s" : ""}</span>
         ${cs.length ? `<span>${cs.length} countr${cs.length > 1 ? "ies" : "y"}</span>` : ""}<span class="dot">·</span>
         <span>${fmt(s.first)}${s.first.slice(0, 10) !== s.last.slice(0, 10) ? " – " + fmt(s.last) : ""}</span>
         ${s.items.some(isNew) ? `<span class="flag new">${icon("spark")}new</span>` : ""}</div>
@@ -1601,7 +1636,7 @@ function renderStories() {
       const langs = [...new Set(s.items.map(a => a.lang))], countries = [...new Set(s.items.map(a => a.country).filter(Boolean))];
       const fr = countBy(s.items, a => a.framing);
       return `<div class="card story" data-story="${s.lead.id}">
-        <div class="meta"><b>${s.items.length} outlet${s.items.length > 1 ? "s" : ""}</b>
+        <div class="meta"><b>${outletsLabel(s.items)}</b>
           <span>· ${langs.length} language${langs.length > 1 ? "s" : ""}: ${langs.map(l => `<span class="lang">${esc(l)}</span>`).join(" ")}</span>
           ${countries.length ? `<span>· ${countries.length} countr${countries.length > 1 ? "ies" : "y"}</span>` : ""}
           <span>· ${fmt(s.first)}${s.first.slice(0, 10) !== s.last.slice(0, 10) ? " – " + fmt(s.last) : ""}</span>
@@ -1641,6 +1676,22 @@ function renderCountries() {
 }
 
 function renderAlerts() {
+  if (subview.alerts === "changes") return renderChanges();
+  renderAlertList();
+  $("view").insertAdjacentHTML("afterbegin", subtabs("alerts", [["alerts", "Alerts"], ["changes", "Corrections & removals"]]));
+}
+function renderChanges() {
+  const items = all.filter(a => a.correction || ["gone", "moved"].includes(a.link_status))
+    .sort((a, b) => (b.link_changed_at || "").localeCompare(a.link_changed_at || ""));
+  const checked = all.filter(a => a.link_status).length;
+  $("count").innerHTML = `${items.filter(a => a.correction).length} corrected later · ${items.filter(a => !a.correction).length} taken down · ${checked} articles rechecked so far`;
+  $("view").innerHTML = subtabs("alerts", [["alerts", "Alerts"], ["changes", "Corrections & removals"]]) +
+    `<p class="note">News and government articles are rechecked a couple of hundred at a time each scrape. <b>Corrected later</b>: the publisher has since added a correction,
+      clarification or editor's note (the dashboard keeps the text first collected). <b>Taken down</b>: the link now returns “not found” or lands on the home page; an archived
+      copy is linked where one exists. Paywalls and bot walls are not counted as removals.</p>
+    <div class="list">${items.map(a => articleCard(a)).join("") || `<div class="empty">Nothing corrected or taken down among the articles rechecked so far.</div>`}</div>`;
+}
+function renderAlertList() {
   const alerts = filtered.filter(a => a.alert);
   const unseen = alerts.filter(a => !a.alert_seen).length;
   $("count").innerHTML = `${alerts.length} alerts · ${unseen} unseen <button class="admin" id="seenBtn" ${unseen ? "" : "disabled"}>Mark all seen</button>`;
@@ -1707,12 +1758,12 @@ $("tagChips").addEventListener("click", e => {
   const t = e.target.closest(".chip")?.dataset.tag; if (!t) return;
   activeTags.has(t) ? activeTags.delete(t) : activeTags.add(t); render();
 });
-["lang", "source", "kind", "country", "range", "starred", "foreign", "stateOnly", "showOff", "showOrig", "coll", "rel", "comp", "newOnly"].forEach(id =>
+["lang", "source", "kind", "country", "range", "starred", "foreign", "stateOnly", "showOff", "showOrig", "coll", "rel", "comp", "newOnly", "linkst", "hideCopies"].forEach(id =>
   $(id).addEventListener("change", render));
 
 // Weekly digests saved by the server in digests/
 async function loadDigests() {
-  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T02:18:20.553123+00:00") : "/api/digests")).json();
+  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T02:31:28.242722+00:00") : "/api/digests")).json();
   $("savedDigests").innerHTML = `<option value="">Weekly digests (${names.length})…</option>` +
     names.map(n => `<option value="${esc(n)}">${esc(n.replace("havana-weekly-", "Week of ").replace(".md", ""))}</option>`).join("");
 }
@@ -1749,7 +1800,9 @@ async function openDrawer(id) {
   $("dSide").classList.toggle("on", sideBySide);
   $("dOff").textContent = cur.offtopic ? "Not off-topic" : "Mark off-topic";
   const yt = youtubeId(cur.url);
-  $("dSummary").innerHTML = cur.story_summary ? `<p class="summary"><b>Story summary</b>${esc(cur.story_summary)}<br><span class="sub">Key sentences picked automatically from the outlets covering this story.</span></p>` : "";
+  const notice = [cur.correction ? `<b>Corrected or updated after publication.</b> The publisher added: “${esc(cur.correction)}” (seen ${fmt(cur.link_changed_at)}). The text below is the version first collected.` : "",
+    ["gone", "moved"].includes(cur.link_status) ? `<b>The original has been taken down</b> (noticed ${fmt(cur.link_changed_at)}).${cur.archive_url ? " Use “Archived copy” to read it." : " No archived copy was found."}` : ""].filter(Boolean);
+  $("dSummary").innerHTML = notice.map(n => `<div class="notice">${n}</div>`).join("") + (cur.story_summary ? `<p class="summary"><b>Story summary</b>${esc(cur.story_summary)}<br><span class="sub">Key sentences picked automatically from the outlets covering this story.</span></p>` : "");
   $("dPlayer").innerHTML = cur.media_url && !yt ? `<audio controls preload="none" src="${esc(cur.media_url)}"></audio>` : yt ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${yt}" title="${esc(cur.title)}"
     allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>` : "";
   if (!STATIC) { drawResearch(); $("dNote").value = cur.note || ""; $("dNoteState").textContent = "";
@@ -1930,10 +1983,11 @@ document.addEventListener("click", e => document.querySelectorAll("details.menu[
 const FEED_BASE = STATIC ? new URL(".", location.href).href : "https://gruvymann.github.io/havana-syndrome-monitor/";
 $("emailDigest").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponent(FEED_BASE + "digests.xml");
 $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponent(FEED_BASE + "alerts.xml");
+["Csv:dataset.csv", "Json:dataset.json", "Readme:DATASET.md"].forEach(x => { const [k, f] = x.split(":"); $("data" + k).href = FEED_BASE + "data/" + f; });
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-13T02:18:20.553123+00:00";
+  const updated = "2026-11-13T02:31:28.242722+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -1948,7 +2002,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-13T02:18:20.553123+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-13T02:31:28.242722+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
