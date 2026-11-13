@@ -325,7 +325,8 @@ async function loadCollections() {
 }
 
 async function load() {
-  all = await (await fetch(STATIC ? "data/articles.json" : "/api/articles")).json();
+  // The public copy's data URL carries the publish time, so browsers never pair a new page with stale cached data.
+  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T00:26:28.815819+00:00") : "/api/articles")).json();
   const on = all.filter(a => !a.offtopic);
   fillSelect("lang", "All languages", countBy(on, a => a.lang), l => LANGS[l] || l);
   fillSelect("country", "All countries", countBy(on, a => a.country));
@@ -757,7 +758,7 @@ $("tagChips").addEventListener("click", e => {
 
 // Weekly digests saved by the server in digests/
 async function loadDigests() {
-  const names = await (await fetch(STATIC ? "data/digests.json" : "/api/digests")).json();
+  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T00:26:28.815819+00:00") : "/api/digests")).json();
   $("savedDigests").innerHTML = `<option value="">Weekly digests (${names.length})…</option>` +
     names.map(n => `<option value="${esc(n)}">${esc(n.replace("havana-weekly-", "Week of ").replace(".md", ""))}</option>`).join("");
 }
@@ -880,7 +881,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-13T00:25:27.988686+00:00";
+  const updated = "2026-11-13T00:26:28.815819+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -895,7 +896,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-13T00:25:27.988686+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-13T00:26:28.815819+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
