@@ -107,7 +107,8 @@
   #drawer.open { transform: none; }
   #drawer .head { padding: 16px 20px; border-bottom: 1px solid var(--line); }
   #drawer .head h2 { margin: 6px 0; font-size: 17px; }
-  #drawer .body { padding: 16px 20px; overflow: auto; white-space: pre-wrap; flex: 1; }
+  #drawer .body { padding: 16px 20px; overflow: auto; flex: 1; }
+  #dBody { white-space: pre-wrap; }
   #dPlayer { white-space: normal; }
   #drawer .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   a { color: var(--accent); }
@@ -139,6 +140,29 @@
   .card .btns { display: flex; gap: 6px; flex-wrap: wrap; }
   @media (max-width: 760px) { .claim-grid { grid-template-columns: 1fr; } }
   .leaflet-container { background: var(--bg); }
+  /* Timeline */
+  .tl-year { font-size: 20px; margin: 26px 0 8px; }
+  .tl-year:first-child { margin-top: 6px; }
+  .tl-month { border-left: 2px solid var(--line); margin-left: 6px; padding: 2px 0 12px 18px; position: relative; }
+  .tl-month::before { content: ""; position: absolute; left: -6px; top: 7px; width: 10px; height: 10px; border-radius: 50%;
+                      background: var(--panel); border: 2px solid var(--muted); }
+  .tl-month h3 { margin: 0 0 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .tl-mile { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; }
+  .tl-mile b { color: var(--accent); font-size: 12px; margin-right: 6px; }
+  .tl-row { display: flex; gap: 8px; align-items: baseline; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .tl-row:hover { background: var(--accent-soft); }
+  .tl-row .n { flex: none; min-width: 74px; color: var(--muted); font-size: 12px; }
+  .tl-month details { margin-top: 4px; font-size: 13px; }
+  .tl-month summary { cursor: pointer; color: var(--muted); padding: 2px 6px; }
+  .tl-opts { display: inline-flex; gap: 12px; margin-left: 8px; }
+  /* Notes and collections */
+  #dResearch { white-space: normal; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+  #dResearch .chips { margin: 6px 0 8px; }
+  #dNote { width: 100%; min-height: 90px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+           border-radius: 6px; padding: 8px; resize: vertical; }
+  .pill.note { border-color: var(--star); color: var(--star); }
+  .pill.coll { border-color: var(--accent); color: var(--accent); }
+  .card .mynote { margin-top: 6px; font-size: 13px; border-left: 3px solid var(--star); padding-left: 8px; white-space: pre-wrap; }
   @media (prefers-color-scheme: dark) {
     .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
   }
@@ -155,7 +179,13 @@
   <h1>Havana Syndrome Monitor <div class="sub" id="lastRun">Multilingual news, video and primary sources on AHIs and directed energy · read-only public copy</div></h1>
   <label class="sub admin"><input type="checkbox" id="useGdelt" checked> include GDELT</label>
   <button class="primary admin" id="refreshBtn">Scrape now</button>
-  <button class="admin" id="digestBtn">Export digest (.md)</button>
+  <select class="admin" id="exportSel" title="Export the articles in the current filter">
+    <option value="">Export…</option>
+    <option value="digest">Briefing digest (.md)</option>
+    <option value="csv">Spreadsheet (.csv)</option>
+    <option value="ris">Zotero / EndNote (.ris)</option>
+    <option value="bib">BibTeX (.bib)</option>
+  </select>
   <select id="savedDigests" title="Weekly digests saved in the digests/ folder"><option value="">Weekly digests…</option></select>
   <details class="subscribe">
     <summary>Subscribe</summary>
@@ -178,7 +208,7 @@
     <div class="stat"><b id="sWeek">–</b><span>published in last 7 days</span></div>
     <div class="stat"><b id="sLangs">–</b><span>languages</span></div>
     <div class="stat"><b id="sCountries">–</b><span>source countries</span></div>
-    <div class="stat"><b id="sPrimary">–</b><span>government, court &amp; research items</span></div>
+    <div class="stat"><b id="sPrimary">–</b><span>primary sources (government, Congress, court, research, documents)</span></div>
   </div>
   <div class="charts">
     <div class="chart"><h3>Articles per week (current filter)</h3><canvas id="weekChart"></canvas></div>
@@ -188,18 +218,21 @@
   <div class="tabs">
     <button data-view="articles" class="on">Articles</button>
     <button data-view="stories">Stories</button>
+    <button data-view="timeline">Timeline</button>
     <button data-view="countries">Countries &amp; framing</button>
     <button data-view="claims">Claims</button>
     <button data-view="map">Map</button>
     <button data-view="people">People &amp; orgs</button>
     <button data-view="alerts">Alerts <span class="badge" id="alertBadge" hidden></span></button>
+    <button data-view="collections" class="admin">My collections</button>
   </div>
 
   <div class="filters">
     <input type="search" id="q" placeholder="Full-text search (any language; try: gabbard OR &quot;unit 29155&quot;)…">
     <select id="kind">
       <option value="">All source types</option><option value="news">News</option>
-      <option value="government">Government</option><option value="court">Court cases</option>
+      <option value="government">Government</option><option value="congress">Congress (bills, hearings, record)</option>
+      <option value="court">Court cases</option><option value="documents">Documents (FOIA, declassified)</option>
       <option value="research">Research (PubMed)</option>
       <option value="social">Social (Telegram, Reddit)</option>
       <option value="video">▶ Video</option>
@@ -212,6 +245,7 @@
       <option value="30">Last 30 days</option><option value="90">Last 90 days</option>
       <option value="365">Last year</option>
     </select>
+    <select id="coll" class="admin"><option value="">All items</option></select>
     <label class="admin"><input type="checkbox" id="starred"> starred</label>
     <label><input type="checkbox" id="foreign"> non-English</label>
     <label><input type="checkbox" id="stateOnly"> state media</label>
@@ -237,10 +271,18 @@
       <button id="dClose" style="margin-left:auto">Close</button>
     </div>
   </div>
-  <div class="body"><div id="dPlayer"></div><div id="dBody"></div></div>
+  <div class="body"><div id="dPlayer"></div>
+    <div id="dResearch" class="admin">
+      <div class="sub">My collections <span class="sub">— click to add or remove</span></div>
+      <div class="chips" id="dColls"></div>
+      <div class="sub" style="display:flex;justify-content:space-between"><span>My note (private: never published)</span><span id="dNoteState"></span></div>
+      <textarea id="dNote" placeholder="Why this matters, quotes to use, how it fits your compendium…"></textarea>
+    </div>
+    <div id="dBody"></div></div>
 </aside>
 
 <form id="digestForm" method="post" action="/api/digest" style="display:none"><input name="ids"></form>
+<form id="exportForm" method="post" action="/api/export" style="display:none"><input name="ids"><input name="format"></form>
 
 <script>
 const LANGS = {"ar": "Arabic", "de": "German", "en": "English", "es": "Spanish", "fr": "French", "he": "Hebrew", "it": "Italian", "ja": "Japanese", "ko": "Korean", "no": "Norwegian", "pl": "Polish", "pt": "Portuguese", "ru": "Russian", "uk": "Ukrainian", "zh": "Chinese"};
@@ -253,6 +295,11 @@ const ENTITIES = ["Tulsi Gabbard (DNI)", "GRU Unit 29155", "GRU (Russian militar
 const CLAIMS = [{"id": "device_purchase", "name": "US bought a pulsed-RF device", "summary": "Homeland Security Investigations covertly bought a backpack-sized pulsed radio-frequency device with Russian-origin parts in late 2024; the Pentagon has tested it (first reported by CNN, Jan 2026)."}, {"id": "device_tests", "name": "Device caused injuries in animal tests", "summary": "60 Minutes reported (Mar 2026) that more than a year of animal testing of the purchased device produced injuries similar to AHIs."}, {"id": "norway_selftest", "name": "Norwegian scientist\u0027s self-test", "summary": "A Norwegian government scientist tested a microwave-pulse device on himself in 2024 and developed AHI-like symptoms (Washington Post, Feb 2026)."}, {"id": "gru_29155", "name": "Russia\u0027s GRU Unit 29155 was behind attacks", "summary": "The Insider, 60 Minutes and Der Spiegel linked incidents to the Russian military intelligence sabotage unit 29155 (Mar 2024)."}, {"id": "frankfurt_2014", "name": "Frankfurt 2014 incident predates Havana", "summary": "A US consulate employee in Frankfurt was knocked unconscious in Nov 2014, later linked to GRU operatives in reporting."}, {"id": "ic_unlikely", "name": "Intelligence agencies: foreign attack \"very unlikely\"", "summary": "The 2023 and Jan 2025 intelligence assessments judged it very unlikely a foreign adversary was responsible."}, {"id": "gabbard_rescind", "name": "Gabbard rescinded the skeptical assessments", "summary": "DNI Tulsi Gabbard rescinded the 2023 and 2025 intelligence assessments in June 2026, saying they suppressed analysis."}, {"id": "nih_no_injury", "name": "NIH found no detectable brain injury", "summary": "NIH\u0027s 2024 studies in JAMA found no MRI-detectable brain injury or biomarker differences in AHI patients."}, {"id": "nasem_rf", "name": "National Academies: pulsed RF \"most plausible\"", "summary": "The National Academies (Dec 2020) found directed, pulsed radio-frequency energy the most plausible mechanism for distinctive early cases."}, {"id": "psychogenic", "name": "Mass psychogenic illness explains cases", "summary": "Skeptics, including Bartholomew and Baloh and the FBI\u0027s behavioral analysts, argue symptoms spread psychologically rather than from a weapon."}, {"id": "crickets", "name": "The Havana sounds were crickets", "summary": "Researchers matched the 2017 Havana recordings to the Indies short-tailed cricket (2019)."}, {"id": "payments", "name": "Pentagon paid ~$3M in HAVANA Act compensation", "summary": "The Pentagon made its first HAVANA Act payments, nearly $3 million, in July 2026."}, {"id": "discombobulator", "name": "\"Discombobulator\" used in Maduro raid", "summary": "Trump said a secret \"discombobulator\" was used in the Jan 2026 raid that captured Maduro; no official description was given."}];
 const CLAIM_NAME = Object.fromEntries(CLAIMS.map(c => [c.id, c.name]));
 const PIN_ICON = { place: "📍", entity: "👤", claim: "⚖️" };
+const MILESTONES = [{"date": "2026-09-01", "label": "Sep 2026", "precision": "month", "text": "Walter Reed study in *Frontiers in Neurology*: 40 AHI patients improved on a cognitive test battery after BrainHQ training (uncontrolled, retrospective; [press release](https://www.globenewswire.com/news-release/2026/09/29/3370416/0/en/pentagon-pivots-on-havana-syndrome-with-re-branding-compensation-and-a-new-study.html) from the product\u0027s maker)."}, {"date": "2026-07-10", "label": "Jul 10, 2026", "precision": "day", "text": "Pentagon pays first HAVANA Act compensation (nearly $3M) and renames its team the Directed Energy Bio-Effects CFT ([DefenseScoop](https://defensescoop.com/2026/07/13/havana-syndrome-payments-directed-energy-bio-effects/))."}, {"date": "2026-06-01", "label": "Jun 2026", "precision": "month", "text": "DNI Gabbard rescinds the 2023 and 2025 IC assessments, citing suppressed analysis and a flawed medical study ([CNN via CP24](https://www.cp24.com/news/world/2026/06/12/gabbard-rescinds-biden-era-intel-assessments-that-were-skeptical-about-havana-syndrome/))."}, {"date": "2026-03-01", "label": "Mar 2026", "precision": "month", "text": "60 Minutes reports the device was bought from a \"Russian criminal network\" for about $15M, can reach targets \"hundreds of feet away,\" and produced similar injuries in animal tests (anonymous sources; [Defense Post](https://thedefensepost.com/2026/03/12/us-havana-syndrome-weapon/amp/))."}, {"date": "2026-02-01", "label": "Feb 2026", "precision": "month", "text": "AHI team moves from Pentagon Policy to Research \u0026 Engineering, focused on treatments and countermeasures ([DefenseScoop](https://defensescoop.com/2026/02/24/havana-syndrome-defense-department-anomalous-health-incidents-ahi-cft/))."}, {"date": "2026-02-01", "label": "Feb 2026", "precision": "month", "text": "Washington Post: a Norwegian government scientist self-tested a microwave-pulse device in 2024 and developed AHI-like symptoms ([Stars and Stripes](https://www.stripes.com/theaters/europe/2026-02-14/pentagon-havana-syndrome-experiment-norway-20740362.html))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "Trump says a secret \"discombobulator\" was used in the raid that captured Maduro; no official description given ([Newsweek](https://newsweek.com/the-discombobulator-does-trumps-secret-weapon-really-exist-11416698))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "CNN reveals Homeland Security Investigations bought a pulsed-RF device with Russian parts in late 2024; the Pentagon has been testing it ([CBS News](https://www.cbsnews.com/news/havana-syndrome-device-what-to-know/))."}, {"date": "2026-01-01", "label": "Jan 2026", "precision": "month", "text": "Michael Beck, reportedly among the first to report symptoms, dies at 65."}, {"date": "2025-01-10", "label": "Jan 10, 2025", "precision": "day", "text": "Updated IC assessment: most agencies still say \"very unlikely\"; two shift on foreign capability ([ODNI](https://archive.dni.gov/files/ODNI/documents/assessments/NIC-Unclassified-ICA-Updated-Assessment-AHI-December2024.pdf))."}, {"date": "2024-12-01", "label": "Dec 2024", "precision": "month", "text": "House Intelligence subcommittee interim report says the 2023 assessment lacked analytic integrity ([HPSCI](https://intelligence.house.gov/2024/12/05/crawford-cia-subcommittee-release-interim-report-on-havana-syndrome))."}, {"date": "2024-10-01", "label": "Late 2024", "precision": "season", "text": "US covertly acquires the pulsed-RF device. Pentagon and White House officials visit Norway about the self-test."}, {"date": "2024-09-01", "label": "Sep 2024", "precision": "month", "text": "NIH ends its AHI research protocol after a coercion allegation (the CIA denied it)."}, {"date": "2024-07-01", "label": "Jul 2024", "precision": "month", "text": "GAO reports 334 people qualified for DoD AHI health care."}, {"date": "2024-03-01", "label": "Mar 2024", "precision": "month", "text": "NIH studies published in *JAMA*: no MRI-detectable brain injury. The Insider / 60 Minutes / Der Spiegel link GRU Unit 29155 to incidents."}, {"date": "2023-03-01", "label": "Mar 1, 2023", "precision": "day", "text": "IC assessment: five of seven agencies judge foreign involvement \"very unlikely.\""}, {"date": "2022-02-01", "label": "Feb 2022", "precision": "month", "text": "IC Experts Panel: pulsed electromagnetic energy and ultrasound plausible for \"core\" cases. JASON report released."}, {"date": "2022-01-01", "label": "Jan 2022", "precision": "month", "text": "CIA interim report on about 1,000 cases: most explained by other causes; about two dozen unresolved."}, {"date": "2021-10-08", "label": "Oct 8, 2021", "precision": "day", "text": "HAVANA Act signed into law."}, {"date": "2021-01-01", "label": "2021", "precision": "year", "text": "Clusters in Vienna (dozens), Berlin, Bogot\u00e1, Hanoi (before VP Harris\u0027s visit), and India (CIA Director Burns\u0027s trip). Over 200 reported cases by September."}, {"date": "2020-12-01", "label": "Dec 2020", "precision": "month", "text": "National Academies report names directed, pulsed RF energy the most plausible mechanism."}, {"date": "2020-11-01", "label": "Nov 2020", "precision": "month", "text": "Incident reported on the Ellipse near the White House."}, {"date": "2019-01-01", "label": "2019", "precision": "year", "text": "Recordings attributed to the Indies short-tailed cricket; second Penn imaging study (JAMA); CDC report finds no mechanism."}, {"date": "2018-01-01", "label": "2018", "precision": "year", "text": "First Penn study (JAMA, 21 patients) describes a concussion-like syndrome. Cases in Guangzhou, China. FBI finds no evidence of a sonic attack."}, {"date": "2017-08-01", "label": "Aug\u2013Oct 2017", "precision": "month", "text": "Cases made public. US expels Cuban diplomats and cuts embassy staff."}, {"date": "2016-10-01", "label": "Late 2016", "precision": "season", "text": "First US and Canadian diplomats in Havana report sounds, pressure, and illness."}];
+const PRIMARY = ["government", "congress", "court", "research", "documents"];
+const KIND_LABEL = { government: "government", congress: "Congress", court: "court", research: "research", documents: "document" };
+let COLLS = [];   // [{id, name, n}] — local dashboard only
+const collName = id => COLLS.find(c => c.id === id)?.name || "";
 let all = [], filtered = [], activeTags = new Set(), charts = {}, view = "articles";
 let hits = null;             // full-text search results: Map id -> snippet, or null when not searching
 let pin = { place: "", entity: "", claim: "", stance: "" };  // filters set from the Map, People and Claims views
@@ -269,6 +316,14 @@ const fillSelect = (id, label, counts, name = k => k) => {
   $(id).value = cur;
 };
 
+async function loadCollections() {
+  COLLS = await (await fetch("/api/collections")).json();
+  const cur = $("coll").value;
+  $("coll").innerHTML = `<option value="">All items</option><option value="notes">📝 Has my note (${all.filter(a => a.note).length})</option>` +
+    COLLS.map(c => `<option value="c:${c.id}">📁 ${esc(c.name)} (${c.n})</option>`).join("");
+  $("coll").value = [...$("coll").options].some(o => o.value === cur) ? cur : "";
+}
+
 async function load() {
   all = await (await fetch(STATIC ? "data/articles.json" : "/api/articles")).json();
   const on = all.filter(a => !a.offtopic);
@@ -281,7 +336,8 @@ async function load() {
   $("sWeek").textContent = on.filter(a => a.published && new Date(a.published) > week).length;
   $("sLangs").textContent = new Set(on.map(a => a.lang)).size;
   $("sCountries").textContent = new Set(on.map(a => a.country).filter(Boolean)).size;
-  $("sPrimary").textContent = on.filter(a => a.kind !== "news").length;
+  $("sPrimary").textContent = on.filter(a => PRIMARY.includes(a.kind)).length;
+  if (!STATIC) await loadCollections();
   const unseen = all.filter(a => a.alert && !a.alert_seen).length;
   $("alertBadge").hidden = !unseen; $("alertBadge").textContent = unseen;
   render();
@@ -299,8 +355,15 @@ function applyFilters() {
     (!lang || a.lang === lang) && (!src || a.source === src) && (!kind || (kind === "video" ? a.video : a.kind === kind)) &&
     (!country || a.country === country) && (!cutoff || new Date(dateOf(a)) > cutoff) &&
     (!$("starred").checked || a.starred) && (!$("foreign").checked || a.lang !== "en") &&
-    (!$("stateOnly").checked || a.state_media) &&
+    (!$("stateOnly").checked || a.state_media) && collOk(a) &&
     [...activeTags].every(t => a.tags.includes(t)));
+}
+
+function collOk(a) {
+  const c = STATIC ? "" : $("coll").value;
+  if (!c) return true;
+  if (c === "notes") return !!a.note;
+  return (a.collections || []).includes(+c.slice(2));
 }
 
 function render() {
@@ -312,8 +375,8 @@ function render() {
   }).join("") + ["place", "entity", "claim"].filter(k => pin[k]).map(k =>
     `<span class="pinned">${PIN_ICON[k]} ${esc(k === "claim" ? CLAIM_NAME[pin.claim] +
       (pin.stance ? (pin.stance === "disputes" ? " · doubt or denial" : " · reporting") : "") : pin[k])}<button data-unpin="${k}" title="Remove filter">✕</button></span>`).join("");
-  ({ articles: renderArticles, stories: renderStories, countries: renderCountries, claims: renderClaims, map: renderMap,
-     people: renderPeople, alerts: renderAlerts })[view]();
+  ({ articles: renderArticles, stories: renderStories, timeline: renderTimeline, countries: renderCountries, claims: renderClaims,
+     map: renderMap, people: renderPeople, alerts: renderAlerts, collections: renderCollections })[view]();
   drawCharts();
 }
 
@@ -342,7 +405,7 @@ const snippetHtml = s => esc(s).replace(/\[\[/g, "<mark>").replace(/\]\]/g, "</m
 
 function cardMeta(a) {
   return `<span class="lang">${esc(a.lang)}</span>
-    ${a.kind !== "news" ? `<span class="pill kind ${a.kind}">${esc(a.kind === "social" ? a.found_via : a.kind)}</span>` : ""}
+    ${a.kind !== "news" ? `<span class="pill kind ${a.kind}">${esc(a.kind === "social" ? a.found_via : (KIND_LABEL[a.kind] || a.kind))}</span>` : ""}
     ${a.video ? `<span class="pill video" title="Video">▶ video${a.duration ? " · " + esc(a.duration) : ""}</span>` : ""}
     <span>${esc(a.source)}</span>${a.country ? `<span>· ${esc(a.country)}</span>` : ""}
     <span>· ${fmt(dateOf(a))}</span>
@@ -350,7 +413,9 @@ function cardMeta(a) {
     ${a.alert ? `<span class="pill alert">alert</span>` : ""}
     ${a.offtopic ? `<span class="pill off">off-topic?</span>` : ""}
     <span class="fr ${a.framing}">${esc(FRAME_LABEL[a.framing] || "")}</span>
-    ${a.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}`;
+    ${a.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}
+    ${(a.collections || []).map(c => `<span class="pill coll">📁 ${esc(collName(c))}</span>`).join("")}
+    ${a.note ? `<span class="pill note" title="You added a note">📝 note</span>` : ""}`;
 }
 
 function articleCard(a, extraClass = "") {
@@ -367,6 +432,7 @@ function articleCard(a, extraClass = "") {
     ${a.lang !== "en" ? `<div class="orig">${esc(orig ? (a.title_en || "(not translated yet)") : a.title)}</div>` : ""}
     ${hits?.get(a.id)?.snippet ? `<div class="snippet">${snippetHtml(hits.get(a.id).snippet)}</div>`
       : (a.excerpt_en || a.excerpt) ? `<p>${esc(orig ? a.excerpt : (a.excerpt_en || a.excerpt))}</p>` : ""}
+    ${a.note ? `<div class="mynote">${esc(a.note.length > 300 ? a.note.slice(0, 300) + "…" : a.note)}</div>` : ""}
   </div>`;
 }
 
@@ -481,6 +547,83 @@ function renderPeople() {
       <td class="hide-sm">${r.countries.map(esc).join(", ")}</td></tr>`).join("")}</tbody></table>`;
 }
 
+// ---------- Timeline ----------
+const mdInline = s => esc(s).replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+  .replace(/\*([^*]+)\*/g, "<i>$1</i>");
+const MONTH_FMT = k => new Date(k + "-15").toLocaleDateString(undefined, { year: "numeric", month: "long" });
+const tlOpt = (id, label, on = true) => `<label><input type="checkbox" id="${id}" ${($(id)?.checked ?? on) ? "checked" : ""}> ${label}</label>`;
+function renderTimeline() {
+  const showM = $("tlMile")?.checked ?? true, showS = $("tlStory")?.checked ?? true, showD = $("tlDocs")?.checked ?? true;
+  const minOutlets = +($("tlMin")?.value || 4);
+  const days = +$("range").value, cutoff = days ? new Date(Date.now() - days * 864e5).toISOString().slice(0, 10) : "";
+  const groups = {};   // "YYYY-MM" or "YYYY" (year-wide milestones) -> { miles, stories, docs }
+  const g = k => (groups[k] = groups[k] || { miles: [], stories: [], docs: [] });
+  if (showM) MILESTONES.filter(m => !cutoff || m.date >= cutoff).forEach(m => g(m.precision === "year" ? m.date.slice(0, 4) : m.date.slice(0, 7)).miles.push(m));
+  let nStories = 0, nDocs = 0;
+  if (showS) storiesOf(filtered.filter(a => !PRIMARY.includes(a.kind))).filter(s => s.items.length >= minOutlets).forEach(s => {
+    g(s.first.slice(0, 7)).stories.push(s); nStories++; });
+  if (showD) filtered.filter(a => PRIMARY.includes(a.kind)).forEach(a => { g(dateOf(a).slice(0, 7)).docs.push(a); nDocs++; });
+  const keys = Object.keys(groups).sort((a, b) => (b.length === 4 ? b + "-99" : b).localeCompare(a.length === 4 ? a + "-99" : a));
+  $("count").innerHTML = `${showM ? MILESTONES.length + " milestones · " : ""}${nStories} major stories · ${nDocs} primary documents
+    <span class="tl-opts">${tlOpt("tlMile", "Milestones")}${tlOpt("tlStory", "Major stories")}${tlOpt("tlDocs", "Primary documents")}
+    <select id="tlMin" title="Smallest story to show">${[2, 3, 4, 6, 10].map(n => `<option value="${n}" ${n === minOutlets ? "selected" : ""}>stories with ${n}+ outlets</option>`).join("")}</select></span>`;
+  ["tlMile", "tlStory", "tlDocs", "tlMin"].forEach(id => $(id).onchange = render);
+  let year = "", html = `<p class="note">Newest first. <b>Milestones</b> come from the Timeline table in your research compendium (edit it there; reload to update).
+    <b>Major stories</b> are story groups covered by several outlets, placed at their first article. <b>Primary documents</b> are government, Congress, court, research and DocumentCloud items
+    (DocumentCloud dates are upload dates). Stories and documents follow the filters above.</p>`;
+  for (const k of keys) {
+    const y = k.slice(0, 4), grp = groups[k];
+    if (y !== year) { year = y; html += `<h2 class="tl-year">${y}</h2>`; }
+    grp.stories.sort((a, b) => b.items.length - a.items.length);
+    const byKind = countBy(grp.docs, a => KIND_LABEL[a.kind]);
+    grp.docs.sort((a, b) => dateOf(a).localeCompare(dateOf(b)));
+    html += `<div class="tl-month"><h3>${k.length === 4 ? "During " + k : MONTH_FMT(k)}</h3>
+      ${grp.miles.map(m => `<div class="tl-mile"><b>${esc(m.label)}</b>${mdInline(m.text)}</div>`).join("")}
+      ${grp.stories.slice(0, 8).map(s => `<div class="tl-row" data-open="${s.lead.id}"><span class="n">${s.items.length} outlets</span>
+        <span>${esc(s.lead.title_en || s.lead.title)} <span class="sub">· ${fmt(s.first)}</span></span></div>`).join("")}
+      ${grp.stories.length > 8 ? `<div class="sub" style="padding-left:6px">+ ${grp.stories.length - 8} smaller stories (see the Stories tab)</div>` : ""}
+      ${grp.docs.length ? `<details><summary>${grp.docs.length} primary document${grp.docs.length > 1 ? "s" : ""}: ${Object.entries(byKind).map(([k2, n]) => `${n} ${k2}`).join(", ")}</summary>
+        ${grp.docs.map(a => `<div class="tl-row" data-open="${a.id}"><span class="n">${fmt(dateOf(a))}</span>
+          <span><span class="pill kind ${a.kind}">${esc(KIND_LABEL[a.kind])}</span> ${esc(a.title_en || a.title)} <span class="sub">· ${esc(a.source)}</span></span></div>`).join("")}</details>` : ""}
+    </div>`;
+  }
+  $("view").innerHTML = keys.length ? html : emptyMsg();
+}
+
+// ---------- My collections (local only) ----------
+const EXP_LABEL = { csv: ".csv", ris: ".ris", bib: ".bib", digest: "digest" };
+function renderCollections() {
+  const notes = all.filter(a => a.note).length;
+  $("count").innerHTML = `${COLLS.length} collection${COLLS.length === 1 ? "" : "s"} · ${notes} article${notes === 1 ? "" : "s"} with notes`;
+  const exp = cid => ["csv", "ris", "bib", "digest"].map(f => `<button data-coll-act="export-${f}" data-cid="${cid}">${EXP_LABEL[f]}</button>`).join("");
+  $("view").innerHTML = `<p class="note">Collections and notes are private to this Mac and are never published to the public site. Add articles from any article's panel
+    (click a card). Export a collection as a spreadsheet, for Zotero/EndNote (.ris), as BibTeX, or as a briefing digest; notes and translations go into the export.</p>
+    <table><thead><tr><th>Collection</th><th>Articles</th><th class="hide-sm">Created</th><th>Export</th><th></th></tr></thead><tbody>
+    <tr><td><a href="#" data-coll-act="show" data-cid="0">📝 Articles with my notes</a></td><td>${notes}</td><td class="hide-sm"></td>
+      <td><span class="btns">${exp(0)}</span></td><td></td></tr>
+    ${COLLS.map(c => `<tr><td><a href="#" data-coll-act="show" data-cid="${c.id}">📁 ${esc(c.name)}</a></td><td>${c.n}</td>
+      <td class="hide-sm">${fmt(c.created_at)}</td><td><span class="btns">${exp(c.id)}</span></td>
+      <td><span class="btns"><button data-coll-act="rename" data-cid="${c.id}">Rename</button><button data-coll-act="delete" data-cid="${c.id}">Delete</button></span></td></tr>`).join("")}
+    </tbody></table>${COLLS.length ? "" : `<div class="empty">No collections yet. Open any article and click “+ New collection”.</div>`}`;
+  $("view").querySelectorAll("a[data-coll-act]").forEach(el => el.onclick = e => { e.preventDefault(); collectionAction("show", +el.dataset.cid); });
+}
+async function collectionAction(act, cid) {
+  const members = cid ? all.filter(a => (a.collections || []).includes(cid)) : all.filter(a => a.note);
+  if (act === "show") { $("coll").value = cid ? `c:${cid}` : "notes"; view = "articles"; setTab(); return render(); }
+  if (act.startsWith("export-")) return exportIds(act.slice(7), members.sort((a, b) => dateOf(a).localeCompare(dateOf(b))).map(a => a.id));
+  if (act === "rename") {
+    const name = prompt("New name:", collName(cid)); if (!name || !name.trim()) return;
+    const r = await fetch(`/api/collections/${cid}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim() }) });
+    if (!r.ok) alert((await r.json()).error || "Could not rename.");
+  }
+  if (act === "delete") {
+    if (!confirm(`Delete the collection “${collName(cid)}”? The ${members.length} articles stay on the dashboard; only the grouping is removed.`)) return;
+    await fetch(`/api/collections/${cid}`, { method: "DELETE" });
+    all.forEach(a => a.collections = (a.collections || []).filter(x => x !== cid));
+  }
+  await loadCollections(); render();
+}
+
 const emptyMsg = () => `<div class="empty">${all.length ? "Nothing matches these filters." : "No articles yet — click “Scrape now”."}</div>`;
 
 function renderArticles() {
@@ -586,6 +729,10 @@ $("view").addEventListener("click", async e => {
   if (row) { $("country").value = row.dataset.country === "Unknown" ? "" : row.dataset.country; view = "articles"; setTab(); return render(); }
   const ent = e.target.closest("tr[data-entity]");
   if (ent) { pin.entity = ent.dataset.entity; view = "articles"; setTab(); window.scrollTo(0, 0); return render(); }
+  const open = e.target.closest("[data-open]");
+  if (open && !e.target.closest("a")) return openDrawer(+open.dataset.open);
+  const cact = e.target.closest("button[data-coll-act]");
+  if (cact) return collectionAction(cact.dataset.collAct, +cact.dataset.cid);
   const sub = e.target.closest(".story-sub div[data-id]");
   if (sub) return openDrawer(+sub.dataset.id);
   const story = e.target.closest(".card.story");
@@ -605,7 +752,7 @@ $("tagChips").addEventListener("click", e => {
   const t = e.target.closest(".chip")?.dataset.tag; if (!t) return;
   activeTags.has(t) ? activeTags.delete(t) : activeTags.add(t); render();
 });
-["lang", "source", "kind", "country", "range", "starred", "foreign", "stateOnly", "showOff", "showOrig"].forEach(id =>
+["lang", "source", "kind", "country", "range", "starred", "foreign", "stateOnly", "showOff", "showOrig", "coll"].forEach(id =>
   $(id).addEventListener("change", render));
 
 // Weekly digests saved by the server in digests/
@@ -639,9 +786,44 @@ async function openDrawer(id) {
   const yt = youtubeId(cur.url);
   $("dPlayer").innerHTML = yt ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${yt}" title="${esc(cur.title)}"
     allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>` : "";
+  if (!STATIC) { drawResearch(); $("dNote").value = cur.note || ""; $("dNoteState").textContent = ""; }
   showBody();
   $("drawer").classList.add("open");
 }
+function drawResearch() {
+  const mine = all.find(x => x.id === cur.id)?.collections || [];
+  $("dColls").innerHTML = COLLS.map(c => `<button class="chip ${mine.includes(c.id) ? "on" : ""}" data-cid="${c.id}">📁 ${esc(c.name)}</button>`).join("") +
+    `<button class="chip" id="dNewColl">+ New collection</button>`;
+}
+$("dColls").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  let cid = +b.dataset.cid;
+  if (b.id === "dNewColl") {
+    const name = prompt("Name of the new collection (e.g. “Compendium: NIH controversy”):");
+    if (!name || !name.trim()) return;
+    cid = (await (await fetch("/api/collections", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }) })).json()).id;
+    const a0 = all.find(x => x.id === cur.id);
+    if ((a0.collections || []).includes(cid)) { await loadCollections(); return drawResearch(); }
+  }
+  const r = await (await fetch(`/api/article/${cur.id}/collections/${cid}`, { method: "POST" })).json();
+  const a = all.find(x => x.id === cur.id);
+  a.collections = r.in ? [...(a.collections || []), cid] : (a.collections || []).filter(x => x !== cid);
+  await loadCollections(); drawResearch(); render();
+});
+let noteTimer;
+$("dNote").addEventListener("input", () => {
+  $("dNoteState").textContent = "…";
+  clearTimeout(noteTimer);
+  const id = cur.id, text = $("dNote").value;
+  noteTimer = setTimeout(async () => {
+    const r = await (await fetch(`/api/article/${id}/note`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: text }) })).json();
+    const a = all.find(x => x.id === id); if (a) a.note = r.note || null;
+    if (cur && cur.id === id) { cur.note = r.note; $("dNoteState").textContent = "Saved ✓"; }
+    render();
+  }, 700);
+});
 function youtubeId(url) {
   const m = (url || "").match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
   return m ? m[1] : null;
@@ -674,11 +856,20 @@ const closeDrawer = () => { $("drawer").classList.remove("open"); $("dPlayer").i
 $("dClose").onclick = closeDrawer;
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
 
-// Digest export of the current filter
-$("digestBtn").onclick = () => {
-  if (!filtered.length) return alert("No articles in the current filter.");
-  document.querySelector("#digestForm input").value = filtered.map(a => a.id).join(",");
-  $("digestForm").submit();
+// Export the current filter: briefing digest or citations (CSV / RIS / BibTeX), in the order shown
+function exportIds(format, ids) {
+  if (!ids.length) return alert("No articles in the current filter.");
+  if (format === "digest") {
+    document.querySelector("#digestForm input").value = ids.join(",");
+    return $("digestForm").submit();
+  }
+  $("exportForm").elements.ids.value = ids.join(",");
+  $("exportForm").elements.format.value = format;
+  $("exportForm").submit();
+}
+$("exportSel").onchange = e => {
+  const f = e.target.value; e.target.value = "";
+  if (f) exportIds(f, filtered.map(a => a.id));
 };
 
 // Scrape with live log
@@ -689,7 +880,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-13T00:07:38.989592+00:00";
+  const updated = "2026-11-13T00:25:27.988686+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -704,7 +895,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-13T00:07:38.989592+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-13T00:25:27.988686+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
