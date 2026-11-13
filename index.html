@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <style>
   /* Color tokens. Each color has one meaning:
      accent = interface; alert = alerts only; new = new since last visit; framing = orange (attack) / teal (skeptic);
@@ -229,6 +230,36 @@
   .pill { border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; font-size: 11px; }
   .pill.kind { border-color: var(--accent); color: var(--accent); text-transform: uppercase; font-weight: 700; }
 
+  /* ---------- sub-tabs, compare, quotes, numbers, network, FOIA, find ---------- */
+  .subtabs { display: inline-flex; gap: 2px; background: var(--hover); border-radius: 8px; padding: 2px; margin-bottom: 10px; }
+  .subtabs button { border: none; background: none; padding: 4px 12px; font-size: 13px; border-radius: 6px; color: var(--muted); }
+  .subtabs button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  .cmp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+  .cmp-col h3 { margin: 0 0 4px; font-size: 15px; }
+  .words { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+  .words span { background: var(--accent-soft); color: var(--accent); border-radius: 4px; padding: 0 6px; font-size: 12px; }
+  .quote { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; cursor: pointer; }
+  .quote:hover { border-color: var(--accent); }
+  .quote blockquote { margin: 0 0 6px; font: 15px/1.55 Charter, Georgia, serif; }
+  .quote blockquote::before { content: "“"; } .quote blockquote::after { content: "”"; }
+  .fig-sent { font-size: 12px; color: var(--muted); }
+  #netSvg { width: 100%; height: 560px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  #netSvg text { font: 11px -apple-system, sans-serif; fill: var(--text); pointer-events: none; }
+  .mapbar { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; font-size: 13px; }
+  .mapbar input[type=range] { flex: 1; min-width: 200px; }
+  .foia-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .foia-form input, .foia-form select, .foia-form textarea { font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; width: 100%; }
+  .foia-form textarea { grid-column: 1 / -1; min-height: 60px; }
+  .late { color: var(--alert); font-weight: 700; }
+  .findbar { display: flex; gap: 6px; align-items: center; margin-bottom: 12px; }
+  .findbar input { flex: 1; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 10px; }
+  .reading mark.hit { background: var(--new-soft); color: inherit; border-radius: 2px; }
+  .reading mark.hit.cur { background: var(--new); color: var(--panel); }
+  .about { max-width: 820px; }
+  .about h2 { font-size: 18px; margin: 22px 0 6px; } .about h2:first-child { margin-top: 0; }
+  .about p, .about li { font-size: 14px; line-height: 1.6; }
+
   /* ---------- Briefing ---------- */
   .brief-hero { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
   .brief-hero h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
@@ -333,6 +364,7 @@
         <button data-export="bib">BibTeX (.bib)</button>
       </div></details>
     <select id="savedDigests" title="Weekly digests"><option value="">Weekly digests…</option></select>
+    <button class="ghost" id="aboutBtn">About</button>
     <details class="menu" id="subMenu"><summary>Subscribe</summary>
       <div class="pop">
         <b>RSS feeds</b> <span class="sub">Paste into any feed reader</span>
@@ -384,7 +416,9 @@
       <button data-view="alerts">Alerts <span class="badge" id="alertBadge" hidden></span></button></div></div>
     <div class="group admin"><span class="gl">Mine</span><div class="tabs">
       <button data-view="collections">Collections</button>
+      <button data-view="foia">FOIA requests <span class="badge" id="foiaBadge" hidden></span></button>
       <button data-view="health">Source health <span class="badge" id="healthBadge" hidden></span></button></div></div>
+    <button data-view="compare" hidden></button><button data-view="about" hidden></button>
   </nav>
 
   <div id="filterArea">
@@ -467,7 +501,11 @@
       <div class="chips" id="dColls"></div>
       <div class="sub" style="display:flex;justify-content:space-between"><span>My note (private: never published)</span><span id="dNoteState"></span></div>
       <textarea id="dNote" placeholder="Why this matters, quotes to use, how it fits your compendium…"></textarea>
+      <div class="sub" style="margin-top:8px">Answers one of my FOIA requests</div>
+      <select id="dFoia" style="width:100%"><option value="">—</option></select>
     </div>
+    <div class="findbar" id="dFindBar"><input type="search" id="dFind" placeholder="Find in this text…" aria-label="Find in this text">
+      <span class="sub" id="dFindCount"></span><button id="dFindPrev" aria-label="Previous match">↑</button><button id="dFindNext" aria-label="Next match">↓</button></div>
     <div id="dBody" class="reading"></div></div>
 </aside>
 <div id="toast" role="status"></div>
@@ -520,7 +558,7 @@ const KIND_LABEL = { government: "government", congress: "Congress", court: "cou
 let COLLS = [];   // [{id, name, n}] — local dashboard only
 const REL_SHORT = { gr: "reliable", nc: "no consensus", m: "rating varies", gu: "unreliable", d: "deprecated", b: "blacklisted" };
 let BILLS = null, WIKI = null, SIGNALS = null, HEALTH = null, COMP = null, DOCKETS = null;
-const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T01:40:39.469442+00:00") : `/api/${name}`;
+const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-13T02:18:20.553123+00:00") : `/api/${name}`;
 // "New since your last visit": the visit before this one stays the baseline for this whole browser session.
 let lastVisit = null;
 try {
@@ -534,6 +572,7 @@ try {
 const isNew = a => !!lastVisit && (a.added_at || "") > lastVisit;
 const collName = id => COLLS.find(c => c.id === id)?.name || "";
 let all = [], filtered = [], activeTags = new Set(), charts = {}, view = "briefing";
+let subview = { people: "table", claims: "claims" }, compareId = null, FOIA = null;
 let hits = null;             // full-text search results: Map id -> snippet, or null when not searching
 let pin = { place: "", entity: "", claim: "", stance: "" };  // filters set from the Map, People and Claims views
 const $ = id => document.getElementById(id);
@@ -564,7 +603,7 @@ async function loadCollections() {
 
 async function load() {
   // The public copy's data URL carries the publish time, so browsers never pair a new page with stale cached data.
-  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T01:40:39.469442+00:00") : "/api/articles")).json();
+  all = await (await fetch(STATIC ? "data/articles.json?v=" + encodeURIComponent("2026-11-13T02:18:20.553123+00:00") : "/api/articles")).json();
   const on = all.filter(a => !a.offtopic);
   fillSelect("lang", "All languages", countBy(on, a => a.lang), l => LANGS[l] || l);
   fillSelect("country", "All countries", countBy(on, a => a.country));
@@ -580,7 +619,7 @@ async function load() {
   $("sNewLabel").textContent = lastVisit ? `new since your last visit (${new Date(lastVisit).toLocaleDateString()})` : "new since your last visit (first visit)";
   if (!SIGNALS) fetchJson("signals").then(d => { SIGNALS = d; $("spikeBadge").hidden = !d.length; $("spikeBadge").textContent = d.length; });
   if (!STATIC && !HEALTH) fetchJson("health").then(d => { HEALTH = d; const bad = d.filter(h => h.fails >= 2).length; $("healthBadge").hidden = !bad; $("healthBadge").textContent = bad; });
-  if (!STATIC) await loadCollections();
+  if (!STATIC) { await loadCollections(); if (!FOIA) loadFoia(); }  // FOIA loads alongside; never blocks the page
   const unseen = all.filter(a => a.alert && !a.alert_seen).length;
   $("alertBadge").hidden = !unseen; $("alertBadge").textContent = unseen;
   render();
@@ -628,15 +667,17 @@ function render() {
   }).join("");
   renderActive();
   $("filterArea").hidden = NO_FILTER_VIEWS.includes(view);
+  if (view !== "map" && mapPlay) stopMapPlay();
   ({ briefing: renderBriefing, articles: renderArticles, stories: renderStories, timeline: renderTimeline, countries: renderCountries, claims: renderClaims,
      map: renderMap, people: renderPeople, alerts: renderAlerts, collections: renderCollections,
-     bills: renderBills, cases: renderCases, spending: renderSpending, signals: renderSignals, health: renderHealth })[view]();
+     bills: renderBills, cases: renderCases, spending: renderSpending, signals: renderSignals, health: renderHealth,
+     foia: renderFoia, compare: renderCompare, about: renderAbout })[view]();
   if (!$("chartsBox").hidden) drawCharts();
   writeHash();
 }
 
 // ---------- active filter chips and the "More filters" panel ----------
-const NO_FILTER_VIEWS = ["briefing", "bills", "cases", "spending", "signals", "collections", "health"];
+const NO_FILTER_VIEWS = ["briefing", "bills", "cases", "spending", "signals", "collections", "health", "foia", "compare", "about"];
 const SELECT_LABEL = { kind: "Type", lang: "Language", range: "Date", country: "Country", source: "Source", rel: "Reliability", coll: "", comp: "" };
 const CHECK_LABEL = { newOnly: "New since last visit", starred: "Starred", foreign: "Non-English", stateOnly: "State media", showOff: "Including off-topic" };
 const MORE_IDS = ["country", "source", "rel", "coll", "comp", "newOnly", "starred", "foreign", "stateOnly", "showOff"];
@@ -702,6 +743,8 @@ function writeHash() {
   if (suppressHash) return;
   const p = new URLSearchParams();
   if (view !== "briefing") p.set("v", view);
+  if (subview[view] && subview[view] !== (view === "people" ? "table" : "claims")) p.set("sub", subview[view]);
+  if (view === "compare" && compareId) p.set("story", compareId);
   const q = $("q").value.trim(); if (q) p.set("q", q);
   Object.entries(HASH_SELECTS).forEach(([id, k]) => $(id).value && p.set(k, $(id).value));
   Object.entries(HASH_CHECKS).forEach(([id, k]) => $(id).checked && p.set(k, "1"));
@@ -714,7 +757,9 @@ function writeHash() {
 function readHash() {
   const p = new URLSearchParams(location.hash.slice(1));
   view = p.get("v") || "briefing";
-  if (!document.querySelector(`#nav button[data-view="${view}"]`) || (STATIC && ["collections", "health"].includes(view))) view = "briefing";
+  if (!document.querySelector(`#nav button[data-view="${view}"]`) || (STATIC && ["collections", "health", "foia"].includes(view))) view = "briefing";
+  subview = { people: p.get("sub") && view === "people" ? p.get("sub") : "table", claims: p.get("sub") && view === "claims" ? p.get("sub") : "claims" };
+  compareId = +p.get("story") || null;
   Object.entries(HASH_SELECTS).forEach(([id, k]) => {
     const v = p.get(k) || "";
     if (v && ![...$(id).options].some(o => o.value === v)) $(id).insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(v)}</option>`);
@@ -733,6 +778,7 @@ async function copyLink(url) {
   catch (e) { prompt("Copy this link:", url); }
 }
 $("shareBtn").onclick = () => copyLink(location.href);
+$("aboutBtn").onclick = () => { view = "about"; setTab(); render(); window.scrollTo(0, 0); };
 
 // Full-text search (server-side SQLite FTS5), debounced
 let searchTimer;
@@ -815,9 +861,22 @@ function articleCard(a, extraClass = "") {
 
 // ---------- Map ----------
 let leaflet = null, markerLayer = null, mapWrap = null;
+function stopMapPlay() { clearInterval(mapPlay); mapPlay = null; if ($("mapPlay")) $("mapPlay").textContent = "▶ Play"; }
+// Map over time: a month slider (cumulative coverage up to that month) with a play button.
+let mapCut = null, mapPlay = null;
+const monthKey = d => d.slice(0, 7);
+function mapMonths() {
+  const ms = filtered.filter(a => a.places.length).map(a => monthKey(dateOf(a))).sort();
+  if (!ms.length) return [];
+  const out = []; let [y, m] = ms[0].split("-").map(Number); const end = monthKey(new Date().toISOString());
+  while (true) { const k = `${y}-${String(m).padStart(2, "0")}`; out.push(k); if (k >= end) break; m++; if (m > 12) { m = 1; y++; } }
+  return out;
+}
 function renderMap() {
+  const months = mapMonths();
+  const cut = mapCut && months.includes(mapCut) ? mapCut : null;
   const counts = {};
-  filtered.forEach(a => a.places.forEach(p => (counts[p] = counts[p] || []).push(a)));
+  filtered.forEach(a => { if (cut && monthKey(dateOf(a)) > cut) return; a.places.forEach(p => (counts[p] = counts[p] || []).push(a)); });
   const names = Object.keys(counts).sort((a, b) => counts[b].length - counts[a].length);
   $("count").innerHTML = `${names.length} places mentioned in ${filtered.length} articles`;
   // The map lives in one container that is moved in and out of the view, so Leaflet is set up once.
@@ -825,7 +884,24 @@ function renderMap() {
     mapWrap = document.createElement("div");
     mapWrap.innerHTML = `<p class="note">Circle size = number of articles that mention the place. Mentions include background explainers, so read it as “where coverage points to”, not a confirmed incident count. The note under each place summarizes publicly reported incidents. Click a circle, then “Show articles”.</p><div id="map"></div>`;
   }
+  if (!mapWrap.querySelector(".mapbar")) mapWrap.insertAdjacentHTML("afterbegin", `<div class="mapbar">
+    <button id="mapPlay">▶ Play</button><input type="range" id="mapSlider" min="0" value="0" aria-label="Show coverage up to this month">
+    <span id="mapLabel" class="sub" style="min-width:150px"></span><button id="mapAll" class="ghost">Show all</button></div>`);
   if (!$("view").contains(mapWrap)) { $("view").innerHTML = ""; $("view").append(mapWrap); }
+  const sl = $("mapSlider");
+  sl.max = Math.max(0, months.length - 1);
+  sl.value = cut ? months.indexOf(cut) : months.length - 1;
+  $("mapLabel").textContent = months.length ? `Coverage up to ${MONTH_FMT(cut || months[months.length - 1])}` : "";
+  sl.oninput = () => { mapCut = months[+sl.value]; if (+sl.value === months.length - 1) mapCut = null; renderMap(); };
+  $("mapAll").onclick = () => { mapCut = null; stopMapPlay(); renderMap(); };
+  $("mapPlay").textContent = mapPlay ? "❚❚ Pause" : "▶ Play";
+  $("mapPlay").onclick = () => {
+    if (mapPlay) return stopMapPlay();
+    let i = cut ? months.indexOf(cut) : 0; if (!cut || i >= months.length - 1) i = 0;
+    mapCut = months[i]; renderMap();
+    mapPlay = setInterval(() => { i++; if (i >= months.length) { stopMapPlay(); mapCut = null; } else mapCut = months[i]; renderMap(); }, 350);
+    $("mapPlay").textContent = "❚❚ Pause";
+  };
   if (!leaflet) {
     leaflet = L.map("map", { worldCopyJump: true }).setView([30, 10], 2);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -843,7 +919,7 @@ function renderMap() {
     const m = L.circleMarker([p.lat, p.lon], { radius: 5 + 25 * Math.sqrt(arts.length / max),
       color, fillColor: color, fillOpacity: 0.35, weight: 1.5 }).addTo(markerLayer);
     m.bindTooltip(`${name}: ${arts.length}`);
-    m.bindPopup(`<b>${esc(name)}</b><br>${esc(p.note)}<br><span class="sub">${arts.length} articles · ${fmt(dates[0])} – ${fmt(dates[dates.length - 1])}</span><br>
+    m.bindPopup(`<b>${esc(name)}</b><br>${esc(p.note)}<br><span class="sub">${arts.length} articles · first mentioned ${fmt(dates[0])} · latest ${fmt(dates[dates.length - 1])}</span><br>
       <button data-place="${esc(name)}">Show articles</button>`);
   });
 }
@@ -857,7 +933,15 @@ document.addEventListener("click", e => {
 });
 
 // ---------- Claim tracker ----------
+function subtabs(v, tabs) {
+  return `<div class="subtabs" role="tablist">${tabs.map(([k, label]) => `<button data-sub="${k}" class="${subview[v] === k ? "on" : ""}">${label}</button>`).join("")}</div>`;
+}
 function renderClaims() {
+  if (subview.claims === "numbers") return renderNumbers();
+  renderClaimCards();
+  $("view").insertAdjacentHTML("afterbegin", subtabs("claims", [["claims", "Claims"], ["numbers", "Reported numbers"]]));
+}
+function renderClaimCards() {
   const months = [];
   const now = new Date();
   for (let i = 23; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(d.toISOString().slice(0, 7)); }
@@ -903,6 +987,12 @@ function sparkline(values) {
   return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${cssVar("--accent")}" stroke-width="1.5"/></svg>`;
 }
 function renderPeople() {
+  if (subview.people === "network") return renderNetwork();
+  if (subview.people === "quotes") return renderQuotes();
+  renderPeopleTable();
+  $("view").insertAdjacentHTML("afterbegin", subtabs("people", [["table", "Table"], ["network", "Who's mentioned with whom"], ["quotes", "Quotes"]]));
+}
+function renderPeopleTable() {
   const months = [];
   const now = new Date();
   for (let i = 23; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(d.toISOString().slice(0, 7)); }
@@ -1019,6 +1109,250 @@ async function renderBills() {
         <div class="sub">${esc(b.stage)}${b.law ? " · " + esc(b.law) : ""}</div></td>
       <td class="hide-sm"><span class="sub">${fmt(b.latest_date)}</span> ${esc(b.latest_action || "")}</td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">No bills yet — they appear after the next scrape.</div>`}`;
+}
+
+// ---------- Reported numbers (Claims › Reported numbers) ----------
+const FIG_CATS = ["Reported cases", "People affected", "Money (compensation, funding)"];
+function figValue(f) {
+  if (f.unit === "USD") return f.v >= 1e9 ? `$${(f.v / 1e9).toFixed(1)}B` : f.v >= 1e6 ? `$${(f.v / 1e6).toFixed(1)}M` : `$${Math.round(f.v).toLocaleString()}`;
+  return `${f.qual ? f.qual + " " : ""}${Math.round(f.v).toLocaleString()} ${f.unit}`;
+}
+function renderNumbers() {
+  const cat = subview.figcat || "Reported cases";
+  const rows = [];
+  filtered.forEach(a => (a.figures || []).forEach(f => f.cat === cat && rows.push({ a, f })));
+  rows.sort((x, y) => dateOf(x.a).localeCompare(dateOf(y.a)));
+  $("count").innerHTML = `${rows.length} figures in ${new Set(rows.map(r => r.a.id)).size} articles`;
+  $("view").innerHTML = subtabs("claims", [["claims", "Claims"], ["numbers", "Reported numbers"]]) +
+    `<p class="note">Figures stated in articles' English text (original or machine-translated) in sentences about AHIs: case counts, people affected, and money.
+      Each comes with its sentence; the same figure is often repeated for years, and outlets round, so read the source before citing. Click a row to open the article.</p>
+    <div class="subtabs">${FIG_CATS.map(c => `<button data-figcat="${esc(c)}" class="${c === cat ? "on" : ""}">${esc(c)}</button>`).join("")}</div>
+    <div class="chart" style="height:280px;margin-bottom:12px"><canvas id="figChart"></canvas></div>
+    <table><thead><tr><th>Date</th><th>Figure</th><th class="hide-sm">Source</th><th>Sentence</th></tr></thead><tbody>
+    ${rows.slice().reverse().slice(0, 300).map(({ a, f }) => `<tr class="click" data-open="${a.id}"><td style="white-space:nowrap">${fmt(dateOf(a))}</td>
+      <td style="white-space:nowrap"><b>${esc(figValue(f))}</b></td><td class="hide-sm">${esc(a.source)}</td><td class="fig-sent">${esc(f.s)}</td></tr>`).join("")}</tbody></table>`;
+  $("view").querySelectorAll("[data-figcat]").forEach(b => b.onclick = () => { subview.figcat = b.dataset.figcat; render(); });
+  if (charts.fig) charts.fig.destroy();
+  const muted = cssVar("--muted"), grid = cssVar("--line");
+  charts.fig = new Chart($("figChart"), { type: "scatter",
+    data: { datasets: [{ data: rows.map(({ a, f }) => ({ x: new Date(dateOf(a)).getTime(), y: f.v, label: `${figValue(f)} · ${a.source}` })),
+      backgroundColor: cssVar("--accent") + "99", pointRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: c => c.raw.label } } },
+      scales: { x: { type: "linear", min: rows.length ? Date.UTC(new Date(dateOf(rows[0].a)).getUTCFullYear(), 0, 1) : undefined,
+                     ticks: { color: muted, stepSize: 365.2425 * 864e5, callback: v => new Date(v + 2 * 864e5).getUTCFullYear() }, grid: { color: grid } },
+                y: { type: "logarithmic", ticks: { color: muted, callback: v => cat.startsWith("Money") ? "$" + Number(v).toLocaleString() : Number(v).toLocaleString() }, grid: { color: grid } } } } });
+}
+
+// ---------- Quotes (People & orgs › Quotes) ----------
+function renderQuotes() {
+  const items = [];
+  filtered.forEach(a => (a.quotes || []).forEach(q => items.push({ a, q, who: q.ent || q.who })));
+  const speakers = Object.entries(countBy(items, x => x.who)).sort((a, b) => b[1] - a[1]);
+  const who = subview.speaker || "";
+  const shown = items.filter(x => !who || x.who === who).sort((x, y) => dateOf(y.a).localeCompare(dateOf(x.a)));
+  $("count").innerHTML = `${items.length} quotes from ${speakers.length} speakers`;
+  $("view").innerHTML = subtabs("people", [["table", "Table"], ["network", "Who's mentioned with whom"], ["quotes", "Quotes"]]) +
+    `<p class="note">Direct quotes attributed to a named person (“…,” said …) in articles' English text. Translated quotes are machine translations, not the speaker's words; check the original before quoting.</p>
+    <div class="filters"><select id="speakerSel"><option value="">Everyone (${items.length})</option>${speakers.map(([n, c]) => `<option value="${esc(n)}" ${n === who ? "selected" : ""}>${esc(n)} (${c})</option>`).join("")}</select></div>
+    <div class="list">${shown.slice(0, 200).map(({ a, q, who }) => `<div class="quote" data-open="${a.id}"><blockquote>${esc(q.q)}</blockquote>
+      <div class="meta"><b>${esc(q.who)}</b>${q.ent && q.ent !== q.who ? `<span class="sub">(${esc(q.ent)})</span>` : ""}<span class="dot">·</span>
+      <span>${esc(a.source)}</span><span>${fmt(dateOf(a))}</span>${a.lang !== "en" ? `<span class="flag media">translated from ${esc(LANGS[a.lang] || a.lang)}</span>` : ""}</div></div>`).join("")
+      || `<div class="empty">No quotes in the current filter.</div>`}</div>`;
+  $("speakerSel").onchange = e => { subview.speaker = e.target.value; render(); };
+}
+
+// ---------- Network (People & orgs › Who's mentioned with whom) ----------
+let netSim = null;
+function renderNetwork() {
+  const withPlaces = subview.netPlaces || false;
+  const keysOf = a => withPlaces ? [...a.entities, ...a.places] : a.entities;
+  const count = {}, pair = {};
+  filtered.forEach(a => {
+    const ks = [...new Set(keysOf(a))].sort();
+    ks.forEach(k => count[k] = (count[k] || 0) + 1);
+    for (let i = 0; i < ks.length; i++) for (let j = i + 1; j < ks.length; j++) { const key = ks[i] + "\u0001" + ks[j]; pair[key] = (pair[key] || 0) + 1; }
+  });
+  const top = Object.entries(count).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).slice(0, 45).map(([k]) => k);
+  const keep = new Set(top);
+  const links = Object.entries(pair).map(([k, w]) => { const [s2, t] = k.split("\u0001"); return { source: s2, target: t, w }; })
+    .filter(l => keep.has(l.source) && keep.has(l.target) && l.w >= 2)
+    // Keep each name's strongest connections only, so the picture shows structure rather than a hairball.
+    .sort((x, y) => y.w - x.w).filter((l, _, arr) => {
+      const rank = k => arr.filter(m => (m.source === k || m.target === k) && m.w > l.w).length;
+      return rank(l.source) < 4 || rank(l.target) < 4;
+    });
+  const placeSet = new Set(Object.keys(PLACES));
+  $("count").innerHTML = `${top.length} names · ${links.length} strongest connections`;
+  $("view").innerHTML = subtabs("people", [["table", "Table"], ["network", "Who's mentioned with whom"], ["quotes", "Quotes"]]) +
+    `<p class="note">Each circle is a person or organization (size = articles mentioning it); lines show each one's strongest links, names most often mentioned in the same articles (thicker = more often).
+      It shows who coverage connects, not who is actually connected. Drag to rearrange; click a name to see its articles.
+      <label style="margin-left:8px"><input type="checkbox" id="netPlaces" ${withPlaces ? "checked" : ""}> include places</label></p><svg id="netSvg"></svg>`;
+  $("netPlaces").onchange = e => { subview.netPlaces = e.target.checked; render(); };
+  if (!window.d3 || !top.length) return;
+  if (netSim) netSim.stop();
+  const svgEl = $("netSvg"), W = svgEl.clientWidth || 900, H = 560;
+  const svg = d3.select(svgEl).attr("viewBox", [0, 0, W, H]);
+  const nodes = top.map(id => ({ id, n: count[id], place: placeSet.has(id) }));
+  const maxN = Math.max(...nodes.map(d => d.n)), maxW = Math.max(1, ...links.map(l => l.w));
+  const r = d => 5 + 20 * Math.sqrt(d.n / maxN);
+  const link = svg.append("g").attr("stroke", cssVar("--muted")).attr("stroke-opacity", .35).selectAll("line").data(links).join("line")
+    .attr("stroke-width", d => 0.6 + 4 * d.w / maxW);
+  const node = svg.append("g").selectAll("g").data(nodes).join("g").style("cursor", "pointer");
+  node.append("circle").attr("r", r).attr("fill", d => d.place ? cssVar("--skeptic") : cssVar("--accent")).attr("fill-opacity", .8)
+    .attr("stroke", cssVar("--panel")).attr("stroke-width", 1.5);
+  node.append("text").text(d => d.id).attr("x", d => r(d) + 3).attr("y", 4);
+  node.append("title").text(d => `${d.id}: ${d.n} articles`);
+  node.on("click", (e, d) => { if (d.place) pin.place = d.id; else pin.entity = d.id; view = "articles"; setTab(); render(); window.scrollTo(0, 0); });
+  netSim = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(l => 170 - 90 * l.w / maxW).strength(.25))
+    .force("charge", d3.forceManyBody().strength(-520)).force("center", d3.forceCenter(W / 2, H / 2))
+    .force("collide", d3.forceCollide().radius(d => r(d) + 14))
+    .on("tick", () => {
+      nodes.forEach(d => { d.x = Math.max(20, Math.min(W - 120, d.x)); d.y = Math.max(20, Math.min(H - 20, d.y)); });
+      link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      node.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+  node.call(d3.drag().on("start", (e, d) => { if (!e.active) netSim.alphaTarget(.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; }).on("end", (e, d) => { if (!e.active) netSim.alphaTarget(0); d.fx = d.fy = null; }));
+}
+
+// ---------- Compare a story across countries ----------
+const BLOCS = [
+  ["United States", ["United States"]], ["Canada", ["Canada"]], ["Cuba", ["Cuba"]], ["Russia", ["Russia", "Belarus"]],
+  ["Ukraine", ["Ukraine"]], ["China", ["China", "Hong Kong"]],
+  ["Europe", ["United Kingdom", "Germany", "France", "Spain", "Italy", "Poland", "Netherlands", "Belgium", "Austria", "Switzerland", "Sweden", "Norway",
+    "Denmark", "Finland", "Ireland", "Portugal", "Czech Republic", "Czechia", "Romania", "Hungary", "Greece", "Serbia", "Lithuania", "Latvia", "Estonia",
+    "Slovakia", "Bulgaria", "Croatia", "Slovenia", "Georgia", "Moldova"]],
+  ["Latin America", ["Mexico", "Brazil", "Argentina", "Colombia", "Venezuela", "Chile", "Peru", "Ecuador", "Bolivia", "Uruguay", "Paraguay", "Nicaragua",
+    "Guatemala", "Honduras", "El Salvador", "Costa Rica", "Panama", "Dominican Republic", "Puerto Rico"]],
+  ["Middle East", ["Israel", "Iran", "Turkey", "Saudi Arabia", "United Arab Emirates", "UAE", "Qatar", "Egypt", "Lebanon", "Iraq", "Syria", "Jordan"]],
+  ["Asia-Pacific", ["Japan", "South Korea", "India", "Taiwan", "Australia", "New Zealand", "Vietnam", "Indonesia", "Philippines", "Singapore", "Pakistan", "Malaysia", "Thailand"]],
+];
+const blocOf = c => (BLOCS.find(([, cs]) => cs.includes(c)) || ["Other or unknown"])[0];
+const CMP_STOP = new Set("the a an and or of to in on for with by at from as is are was were be been has have had it its this that these those not no but than into over after about what who why how new says said say will would could can may might also more most just his her their they them he she we you us havana syndrome anomalous health incidents incident ahi ahis report reports our ago namely left type since one two three first last year years week weeks now today then there here been being which while where when also very much many such other another some any all only even still well get got like made make making used use using per via according told tells".split(" "));
+const toks = t => (t || "").toLowerCase().match(/[a-z][a-z'-]{2,}/g)?.filter(w => !CMP_STOP.has(w)) || [];
+function openCompare(leadId) { compareId = leadId; view = "compare"; setTab(); render(); window.scrollTo(0, 0); }
+function renderCompare() {
+  const lead = all.find(a => a.id === compareId);
+  if (!lead || !lead.cluster_id) { $("count").innerHTML = ""; $("view").innerHTML = `<div class="empty">Pick a story in the Stories tab and click “Compare countries”.</div>`; return; }
+  const items = all.filter(a => a.cluster_id === lead.cluster_id && !a.offtopic);
+  const groups = {};
+  items.forEach(a => (groups[blocOf(a.country)] = groups[blocOf(a.country)] || []).push(a));
+  const order = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+  // Distinctive words: much more common in one group's headlines and leads than in the others'.
+  const freq = {}, totals = {};
+  order.forEach(g => { freq[g] = countBy(groups[g].flatMap(a => [...new Set(toks(`${a.title_en || a.title} ${a.excerpt_en || ""}`))]), w => w); });
+  order.forEach(g => Object.entries(freq[g]).forEach(([w, n]) => totals[w] = (totals[w] || 0) + n));
+  const distinct = g => Object.entries(freq[g]).filter(([, n]) => n >= Math.min(2, groups[g].length))
+    .map(([w, n]) => [w, Math.log((n + .5) / (groups[g].length + 1)) - Math.log((totals[w] - n + .5) / (items.length - groups[g].length + 1))])
+    .sort((a, b) => b[1] - a[1]).slice(0, 7).map(x => x[0]);
+  const color = f => cssVar("--" + f);
+  $("count").innerHTML = `${items.length} articles · ${order.length} regions <button id="cmpBack">← Back to stories</button>`;
+  $("cmpBack").onclick = () => { view = "stories"; setTab(); render(); };
+  $("view").innerHTML = `<div class="brief-hero"><h2 style="font-size:19px">${esc(lead.title_en || lead.title)}</h2>
+      <p>How outlets in each region covered this story. <b>Distinctive words</b> are far more common in that region's headlines and opening lines than elsewhere,
+      a rough guide to emphasis. Framing labels are keyword-based; open the articles to judge.</p></div>
+    <div class="cmp-grid">${order.map(g => { const arts = groups[g].sort((a, b) => dateOf(a).localeCompare(dateOf(b)));
+      const fr = countBy(arts, a => a.framing), n = arts.length, st = arts.filter(a => a.state_media).length, w = distinct(g);
+      return `<div class="panel cmp-col"><h3>${esc(g)} <span class="sub">${n} article${n > 1 ? "s" : ""}${st ? ` · ${st} state media` : ""}</span></h3>
+        <div class="bar" style="margin:6px 0">${FRAMES.map(f => fr[f] ? `<span title="${FRAME_LABEL[f]}: ${fr[f]}" style="width:${100 * fr[f] / n}%;background:${color(f)}"></span>` : "").join("")}</div>
+        <div class="sub">${FRAMES.filter(f => fr[f]).map(f => `${FRAME_LABEL[f]} ${fr[f]}`).join(" · ")}</div>
+        ${w.length && order.length > 1 ? `<div class="words">${w.map(x => `<span>${esc(x)}</span>`).join("")}</div>` : ""}
+        ${arts.map(a => `<div class="brow" data-open="${a.id}"><span class="d">${fmt(dateOf(a))}</span><span><span class="t">${esc(a.title_en || a.title)}</span>
+          <br><span class="sub">${esc(a.source)}${a.country && a.country !== g ? " · " + esc(a.country) : ""}${a.lang !== "en" ? " · " + esc(LANGS[a.lang] || a.lang) : ""}</span></span></div>`).join("")}</div>`; }).join("")}</div>`;
+}
+
+// ---------- Your FOIA requests (local only) ----------
+const foiaStatusSel = (cur, id) => `<select ${id ? `id="${id}"` : ""} data-foia-status>${(FOIA?.statuses || []).map(st => `<option ${st === cur ? "selected" : ""}>${esc(st)}</option>`).join("")}</select>`;
+async function loadFoia() {
+  if (STATIC) return;
+  FOIA = await fetchJson("foia");
+  const late = (FOIA.requests || []).filter(r => r.overdue).length;
+  $("foiaBadge").hidden = !late; $("foiaBadge").textContent = late;
+  $("dFoia").innerHTML = `<option value="">—</option>` + (FOIA.requests || []).map(r => `<option value="${r.id}">${esc(r.agency)}: ${esc(r.subject.slice(0, 60))}</option>`).join("");
+}
+let foiaEditing = null;
+async function renderFoia() {
+  if (!FOIA) { $("view").innerHTML = `<div class="empty">Loading…</div>`; await loadFoia(); if (view !== "foia") return; }
+  const reqs = FOIA.requests || [], ed = reqs.find(r => r.id === foiaEditing) || {};
+  const late = reqs.filter(r => r.overdue).length, open = reqs.filter(r => r.open).length;
+  $("count").innerHTML = `${reqs.length} request${reqs.length === 1 ? "" : "s"} · ${open} open${late ? ` · <span class="late">${late} overdue</span>` : ""}`;
+  $("view").innerHTML = `<p class="note">Your own FOIA requests (private: kept on this Mac, never published). Agencies have 20 working days to respond, not counting weekends and federal holidays,
+    plus 10 more if they invoke “unusual circumstances”. You'll get a Mac notification when an open request passes its due date. Link documents that answer a request from any article's panel.</p>
+    <div class="panel" style="margin-bottom:14px"><h3>${ed.id ? "Edit request" : "Add a request"}</h3>
+      <div class="foia-form">
+        <input id="fAgency" placeholder="Agency (e.g. CIA, State, FBI)" value="${esc(ed.agency || "")}">
+        <input id="fSubject" placeholder="What you asked for" value="${esc(ed.subject || "")}">
+        <input id="fTracking" placeholder="Tracking number" value="${esc(ed.tracking || "")}">
+        <input id="fFiled" type="date" title="Date filed" value="${esc((ed.filed || "").slice(0, 10))}">
+        ${foiaStatusSel(ed.status || "Submitted", "fStatus")}
+        <label style="align-self:center"><input type="checkbox" id="fExt" ${ed.extended ? "checked" : ""}> Agency extended (+10 days)</label>
+        <textarea id="fNotes" placeholder="Notes: correspondence, fees, appeal deadlines…">${esc(ed.notes || "")}</textarea>
+      </div>
+      <div class="btns"><button class="primary" id="fSave">${ed.id ? "Save changes" : "Add request"}</button>
+        ${ed.id ? `<button id="fCancel">Cancel</button><button id="fDelete">Delete request</button>` : ""}</div></div>
+    ${reqs.length ? `<table><thead><tr><th>Agency</th><th>Request</th><th class="hide-sm">Tracking</th><th>Filed</th><th>Due</th><th>Status</th><th class="hide-sm">Documents</th><th></th></tr></thead><tbody>
+    ${reqs.map(r => `<tr><td><b>${esc(r.agency)}</b></td><td>${esc(r.subject)}${r.notes ? `<div class="sub">${esc(r.notes.slice(0, 140))}</div>` : ""}</td>
+      <td class="hide-sm">${esc(r.tracking || "")}</td><td style="white-space:nowrap">${fmt(r.filed)}</td>
+      <td style="white-space:nowrap">${r.due ? `${fmt(r.due)}<div class="sub ${r.overdue ? "late" : ""}">${r.open ? (r.overdue ? `${-r.days_left} days overdue` : `${r.days_left} days left`) : ""}</div>` : ""}</td>
+      <td>${foiaStatusSel(r.status).replace("<select", `<select data-rid="${r.id}"`)}</td>
+      <td class="hide-sm">${r.links.length ? r.links.map(id => { const a = all.find(x => x.id === id); return a ? `<a href="#" data-open="${id}">${esc((a.title_en || a.title).slice(0, 50))}</a>` : ""; }).join("<br>") : `<span class="sub">none yet</span>`}</td>
+      <td><button data-foia-edit="${r.id}">Edit</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No requests yet. Add the first one above.</div>`}`;
+  const body = () => ({ agency: $("fAgency").value.trim(), subject: $("fSubject").value.trim(), tracking: $("fTracking").value.trim(),
+    filed: $("fFiled").value, status: $("fStatus").value, extended: $("fExt").checked, notes: $("fNotes").value.trim() });
+  $("fSave").onclick = async () => {
+    const r = await fetch(ed.id ? `/api/foia/${ed.id}` : "/api/foia", { method: ed.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body()) });
+    if (!r.ok) return alert((await r.json()).error || "Couldn't save the request.");
+    foiaEditing = null; await loadFoia(); render();
+  };
+  if (ed.id) {
+    $("fCancel").onclick = () => { foiaEditing = null; render(); };
+    $("fDelete").onclick = async () => { if (!confirm("Delete this FOIA request from your tracker?")) return;
+      await fetch(`/api/foia/${ed.id}`, { method: "DELETE" }); foiaEditing = null; await loadFoia(); render(); };
+  }
+  $("view").querySelectorAll("[data-foia-edit]").forEach(b => b.onclick = () => { foiaEditing = +b.dataset.foiaEdit; render(); window.scrollTo(0, 0); });
+  $("view").querySelectorAll("select[data-rid]").forEach(sel => sel.onchange = async () => {
+    await fetch(`/api/foia/${sel.dataset.rid}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: sel.value }) });
+    await loadFoia(); render(); });
+}
+
+// ---------- About ----------
+function renderAbout() {
+  const on = all.filter(a => !a.offtopic), by = countBy(on, a => a.kind);
+  const n = k => (by[k] || 0).toLocaleString();
+  $("count").innerHTML = "";
+  $("view").innerHTML = `<div class="about panel" style="padding:20px 24px">
+    <h2>What this is</h2>
+    <p>The Havana Syndrome Monitor collects news, video, social media and primary sources about Havana Syndrome, officially “anomalous health incidents” (AHIs),
+      and the directed-energy question, from around the world. It translates foreign-language coverage into English, groups articles about the same event,
+      and tracks how claims, framing and the official record develop. It updates every 6 hours. It is an independent research tool, not affiliated with any government or news outlet.</p>
+    <h2>Sources</h2>
+    <ul>
+      <li><b>News</b> (${n("news")}): Google News in 15 languages and GDELT; YouTube for video.</li>
+      <li><b>Social media</b> (${n("social")}): public Telegram channels, Reddit (through the Arctic Shift archive), Bluesky and Mastodon.</li>
+      <li><b>Podcasts</b> (${n("podcast")}): the Apple Podcasts directory.</li>
+      <li><b>Government</b> (${n("government")}) and <b>Congress</b> (${n("congress")}): US government sites, the Federal Register, GovInfo (bills, hearings, reports, the Congressional Record) and Congress.gov (bill status, hearing video).</li>
+      <li><b>Courts</b> (${n("court")}): CourtListener dockets, followed for new filings.</li>
+      <li><b>Documents</b> (${n("documents")}): FOIA releases and other records on DocumentCloud.</li>
+      <li><b>Research</b> (${n("research")}): PubMed and OpenAlex. <b>Spending</b> (${n("spending")}): USAspending.gov. <b>Patents</b> (${n("patent")}): Google Patents.</li>
+      <li><b>Wikipedia</b>: edits to the Havana syndrome article in about 40 languages; the community's reliable-sources list for outlet ratings.</li>
+    </ul>
+    <h2>How it works, and its limits</h2>
+    <ul>
+      <li><b>Translation</b> is automatic (offline Argos models, with online services as fallback). Expect errors, especially in names and technical terms.</li>
+      <li><b>Stories</b> group articles with similar English headlines and openings published within a few days. <b>Summaries</b> are sentences picked from those articles, not written by anyone.</li>
+      <li><b>Framing</b> (attack vs skeptic language), <b>claims</b> (and doubt or denial near them), <b>reported numbers</b> and <b>quotes</b> are found by keyword and pattern matching.
+        They are pointers to read, not verdicts; translated quotes are not the speaker's own words.</li>
+      <li><b>Reliability labels</b> come from Wikipedia's community-maintained “perennial sources” list; unrated outlets carry no label, which says nothing about their quality.</li>
+      <li><b>Off-topic filtering</b> hides loose matches (a paper about “anomalous” results, a microwave-oven patent). Some still slip through, and some relevant items may be hidden; “include off-topic” shows them.</li>
+      <li><b>Coverage</b> is what free sources make findable: paywalled, offline and classified material is missing, and coverage in languages outside the 15 searched is thin.</li>
+    </ul>
+    <h2>What's published here</h2>
+    <p>Titles, short excerpts and links, never full article text; every item links to its original. Nothing on this page tracks visitors; “new since your last visit” is remembered only in your own browser.
+      Subscribe through the RSS feeds or email links in the Subscribe menu.</p>
+  </div>`;
 }
 
 // ---------- Court cases (CourtListener dockets) ----------
@@ -1277,6 +1611,7 @@ function renderStories() {
         <h2>${esc(s.lead.title_en || s.lead.title)}</h2>
         ${s.lead.story_summary ? `<p class="summary"><b>Summary</b>${esc(s.lead.story_summary)}</p>`
           : (s.lead.excerpt_en || s.lead.excerpt) ? `<p>${esc(s.lead.excerpt_en || s.lead.excerpt)}</p>` : ""}
+        ${countries.length > 1 ? `<div class="btns" style="margin-top:8px"><button data-compare="${s.lead.id}">Compare ${countries.length} countries</button></div>` : ""}
         <div class="story-sub">${s.items.map(a => `<div data-id="${a.id}"><span class="lang">${esc(a.lang)}</span>
           <span>${esc(a.title_en || a.title)}</span><span class="sub">${esc(a.source)}${a.country ? " · " + esc(a.country) : ""} · ${fmt(dateOf(a))}</span></div>`).join("")}</div>
       </div>`;
@@ -1345,8 +1680,12 @@ $("view").addEventListener("click", async e => {
   if (row) { $("country").value = row.dataset.country === "Unknown" ? "" : row.dataset.country; view = "articles"; setTab(); return render(); }
   const ent = e.target.closest("tr[data-entity]");
   if (ent) { pin.entity = ent.dataset.entity; view = "articles"; setTab(); window.scrollTo(0, 0); return render(); }
+  const cmp = e.target.closest("button[data-compare]");
+  if (cmp) return openCompare(+cmp.dataset.compare);
+  const st = e.target.closest("button[data-sub]");
+  if (st) { subview[view] = st.dataset.sub; return render(); }
   const open = e.target.closest("[data-open]");
-  if (open && !e.target.closest("a")) return openDrawer(+open.dataset.open);
+  if (open && (!e.target.closest("a") || e.target.closest("a")?.dataset.open)) { e.preventDefault(); return openDrawer(+open.dataset.open); }
   const cact = e.target.closest("button[data-coll-act]");
   if (cact) return collectionAction(cact.dataset.collAct, +cact.dataset.cid);
   const sub = e.target.closest(".story-sub div[data-id]");
@@ -1373,7 +1712,7 @@ $("tagChips").addEventListener("click", e => {
 
 // Weekly digests saved by the server in digests/
 async function loadDigests() {
-  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T01:40:39.469442+00:00") : "/api/digests")).json();
+  const names = await (await fetch(STATIC ? "data/digests.json?v=" + encodeURIComponent("2026-11-13T02:18:20.553123+00:00") : "/api/digests")).json();
   $("savedDigests").innerHTML = `<option value="">Weekly digests (${names.length})…</option>` +
     names.map(n => `<option value="${esc(n)}">${esc(n.replace("havana-weekly-", "Week of ").replace(".md", ""))}</option>`).join("");
 }
@@ -1413,7 +1752,9 @@ async function openDrawer(id) {
   $("dSummary").innerHTML = cur.story_summary ? `<p class="summary"><b>Story summary</b>${esc(cur.story_summary)}<br><span class="sub">Key sentences picked automatically from the outlets covering this story.</span></p>` : "";
   $("dPlayer").innerHTML = cur.media_url && !yt ? `<audio controls preload="none" src="${esc(cur.media_url)}"></audio>` : yt ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${yt}" title="${esc(cur.title)}"
     allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>` : "";
-  if (!STATIC) { drawResearch(); $("dNote").value = cur.note || ""; $("dNoteState").textContent = ""; }
+  if (!STATIC) { drawResearch(); $("dNote").value = cur.note || ""; $("dNoteState").textContent = "";
+    const linked = (FOIA?.requests || []).find(r => r.links.includes(cur.id)); $("dFoia").value = linked ? linked.id : ""; }
+  $("dFind").value = searchTerm();
   showBody();
   $("drawer").classList.add("open");
   $("scrim").classList.add("on");
@@ -1441,6 +1782,14 @@ $("dColls").addEventListener("click", async e => {
   a.collections = r.in ? [...(a.collections || []), cid] : (a.collections || []).filter(x => x !== cid);
   await loadCollections(); drawResearch(); render();
 });
+$("dFoia").onchange = async () => {
+  const want = +$("dFoia").value;
+  // One request per document: unlink from any other request first.
+  for (const r of (FOIA?.requests || []).filter(r => r.links.includes(cur.id) && r.id !== want))
+    await fetch(`/api/foia/${r.id}/link/${cur.id}`, { method: "POST" });
+  if (want && !(FOIA.requests.find(r => r.id === want)?.links.includes(cur.id))) await fetch(`/api/foia/${want}/link/${cur.id}`, { method: "POST" });
+  await loadFoia(); toast(want ? "Linked to the FOIA request" : "Unlinked");
+};
 let noteTimer;
 $("dNote").addEventListener("input", () => {
   $("dNoteState").textContent = "…";
@@ -1470,9 +1819,11 @@ function showBody() {
     $("dBody").className = "reading side";
     $("dBody").innerHTML = `<div><h5>Original (${esc(LANGS[cur.lang] || cur.lang)})</h5>${esc(t.orig.trim())}</div>
       <div><h5>English (machine translation)</h5>${esc((t.en || "(not translated yet)").trim() + enNote)}</div>`;
+    setTimeout(() => runFind(false), 0);
     return;
   }
   $("dBody").className = "reading";
+  setTimeout(() => runFind(false), 0);
   let text;
   if (STATIC) text = (cur.excerpt_en || "") + (cur.lang !== "en" && cur.excerpt ? "\n\nOriginal: " + cur.excerpt : "") +
     (cur.video ? "" : "\n\nShort excerpt only (machine-translated where needed). Use “Open original” to read the full article.");
@@ -1503,6 +1854,46 @@ const closeDrawer = () => {
 $("dClose").onclick = closeDrawer;
 $("scrim").onclick = () => { if (!$("morePanel").hidden) setMore(false); closeDrawer(); };
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("morePanel").hidden) setMore(false); else closeDrawer(); } });
+// Find in this text: highlight every match and step through them (handy in long FOIA releases).
+let findHits = [], findAt = 0;
+function runFind(jump = true) {
+  const body = $("dBody");
+  body.querySelectorAll("mark.hit").forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+  body.normalize();
+  findHits = []; findAt = 0;
+  const term = $("dFind").value.trim();
+  if (term.length < 2) { $("dFindCount").textContent = ""; return; }
+  const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+  const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+  const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node => {
+    const t = node.nodeValue; let m, last = 0; const frag = document.createDocumentFragment(); re.lastIndex = 0;
+    while ((m = re.exec(t))) {
+      frag.append(t.slice(last, m.index));
+      const mark = document.createElement("mark"); mark.className = "hit"; mark.textContent = m[0]; frag.append(mark); findHits.push(mark);
+      last = m.index + m[0].length;
+    }
+    if (last) { frag.append(t.slice(last)); node.replaceWith(frag); }
+  });
+  $("dFindCount").textContent = findHits.length ? `1 of ${findHits.length}` : "no matches";
+  if (findHits.length && jump) stepFind(0);
+}
+function stepFind(d) {
+  if (!findHits.length) return;
+  findHits[findAt]?.classList.remove("cur");
+  findAt = (findAt + d + findHits.length) % findHits.length;
+  findHits[findAt].classList.add("cur");
+  findHits[findAt].scrollIntoView({ block: "center" });
+  $("dFindCount").textContent = `${findAt + 1} of ${findHits.length}`;
+}
+let findTimer;
+$("dFind").addEventListener("input", () => { clearTimeout(findTimer); findTimer = setTimeout(runFind, 200); });
+$("dFind").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); } });
+$("dFindNext").onclick = () => stepFind(1);
+$("dFindPrev").onclick = () => stepFind(-1);
+// Start with the current search, minus search operators.
+const searchTerm = () => $("q").value.replace(/\bOR\b|["*()]/g, " ").trim().split(/\s+/).sort((a, b) => b.length - a.length)[0] || "";
+
 $("dSide").onclick = () => { sideBySide = !sideBySide; $("dSide").classList.toggle("on", sideBySide); showBody(); };
 function setReadSize(px) {
   px = Math.max(14, Math.min(24, px));
@@ -1542,7 +1933,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-13T01:40:39.469442+00:00";
+  const updated = "2026-11-13T02:18:20.553123+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -1557,7 +1948,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-13T01:40:39.469442+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-13T02:18:20.553123+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
