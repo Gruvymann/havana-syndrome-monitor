@@ -601,7 +601,7 @@ const KIND_LABEL = { government: "government", congress: "Congress", court: "cou
 let COLLS = [];   // [{id, name, n}] — local dashboard only
 const REL_SHORT = { gr: "reliable", nc: "no consensus", m: "rating varies", gu: "unreliable", d: "deprecated", b: "blacklisted" };
 let BILLS = null, WIKI = null, SIGNALS = null, HEALTH = null, COMP = null, DOCKETS = null;
-const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-14T11:33:36.991103+00:00") : `/api/${name}`;
+const dataUrl = name => STATIC ? `data/${name}.json?v=` + encodeURIComponent("2026-11-14T12:40:17.452502+00:00") : `/api/${name}`;
 // "New since your last visit": the visit before this one stays the baseline for this whole browser session.
 let lastVisit = null;
 try {
@@ -658,7 +658,7 @@ async function load() {
   // The public copy's data URL carries the publish time, so browsers never pair a new page with stale cached data.
   if (STATIC) {
     // Recent items first (enough for the Briefing), then the archive in the background.
-    const v = "?v=" + encodeURIComponent("2026-11-14T11:33:36.991103+00:00");
+    const v = "?v=" + encodeURIComponent("2026-11-14T12:40:17.452502+00:00");
     if (!load.archive) {
       all = await (await fetch("data/articles-recent.json" + v)).json();
       load.archive = fetch("data/articles-archive.json" + v).then(r => r.json()).then(older => {
@@ -2107,7 +2107,7 @@ $("tagChips").addEventListener("click", e => {
 
 // Weekly digests saved by the server in digests/
 async function loadDigests() {
-  const v = "?v=" + encodeURIComponent("2026-11-14T11:33:36.991103+00:00");
+  const v = "?v=" + encodeURIComponent("2026-11-14T12:40:17.452502+00:00");
   const names = await (await fetch(STATIC ? "data/digests.json" + v : "/api/digests")).json();
   let reports = [];
   try { reports = await (await fetch(STATIC ? "data/reports.json" + v : "/api/reports")).json(); } catch (e) {}
@@ -2426,7 +2426,7 @@ $("emailAlerts").href = "https://blogtrottr.com/?subscribe=" + encodeURIComponen
 
 // Public copy: warn when the data is more than 12 hours old (the publishing Mac was off or offline).
 function checkStale() {
-  const updated = "2026-11-14T11:33:36.991103+00:00";
+  const updated = "2026-11-14T12:40:17.452502+00:00";
   if (!STATIC || !updated) return;
   const hours = (Date.now() - new Date(updated)) / 36e5;
   if (hours > 12) {
@@ -2441,7 +2441,7 @@ setInterval(checkStale, 30 * 60 * 1000);
 
 async function poll() {
   if (STATIC) {
-    $("lastRun").textContent = `Updated 2026-11-14T11:33:36.991103+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
+    $("lastRun").textContent = `Updated 2026-11-14T12:40:17.452502+00:00`.replace(/Updated (.+)/, (m, iso) => "Updated " + new Date(iso).toLocaleString()) +
       " · read-only public copy · machine translations; story, framing and off-topic labels are automatic";
     return;
   }
