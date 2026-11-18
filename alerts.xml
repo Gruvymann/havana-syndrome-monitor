@@ -6,7 +6,16 @@
 <atom:link href="https://gruvymann.github.io/havana-syndrome-monitor/alerts.xml" rel="self" type="application/rss+xml"/>
 <description>Government, court and research items plus high-signal headlines.</description>
 <language>en</language>
-<lastBuildDate>Wed, 18 Nov 2026 11:18:39 +0000</lastBuildDate>
+<lastBuildDate>Wed, 18 Nov 2026 12:40:31 +0000</lastBuildDate>
+<item>
+<title>The “Havana syndrome” was hardly caused by hostile attacks</title>
+<link>https://www.ilpost.it/2023/03/02/sindrome-avana-cause-attacchi-ostili/</link>
+<guid isPermaLink="false">alert-4284</guid>
+<pubDate>Wed, 01 Mar 2023 08:00:00 +0000</pubDate>
+<description>&lt;p&gt;&lt;i&gt;Il Post · Italy · translated from Italian&lt;/i&gt;&lt;/p&gt;&lt;p&gt;The “Havana syndrome” was hardly caused by hostile attacks
+The American intelligence has spread its conclusions on the malaise that has hit hundreds of diplomats, whose causes remain unknown
+The United States government said it was “very unlikely” that the so-called “Havana syndrome” had been…&lt;/p&gt;&lt;p&gt;Original title: La “sindrome dell’Avana” difficilmente fu causata da attacchi ostili&lt;/p&gt;</description>
+</item>
 <item>
 <title>Hearing video: Open Hearing: Personnel Vetting, Security Clearance Reform, and Trusted Workforce 2.0</title>
 <link>https://www.senate.gov/isvp/?comm=intel&amp;filename=intel071024</link>
@@ -391,15 +400,6 @@ For decades,…&lt;/p&gt;&lt;p&gt;Original title: Havana Syndrome: The Mysteriou
 <guid isPermaLink="false">alert-4188</guid>
 <pubDate>Wed, 27 Oct 2021 17:11:57 +0000</pubDate>
 <description>&lt;p&gt;&lt;i&gt;Congressman Eric Swalwell · United States · video&lt;/i&gt;&lt;/p&gt;&lt;p&gt;From the Oct. 27, 2021 hearing of the House Permanent Select Committee on Intelligence&lt;/p&gt;</description>
-</item>
-<item>
-<title>§3334k. Report on protocols for certain intelligence community employees and dependents</title>
-<link>https://uscode.house.gov/us/usc/119-120/t50/s3334k/</link>
-<guid isPermaLink="false">alert-4178</guid>
-<pubDate>Mon, 12 Oct 2026 07:11:54 +0000</pubDate>
-<description>&lt;p&gt;&lt;i&gt;House.gov · United States&lt;/i&gt;&lt;/p&gt;&lt;p&gt;Â§3334k. Report on protocols for certain intelligence community employees and dependents
-(a) In general
-Beginning not later than 180 days after March 15, 2022, the President shall develop, for uniform implementation across the elements of the intelligence community, each of the protocols described…&lt;/p&gt;</description>
 </item>
 </channel>
 </rss>
