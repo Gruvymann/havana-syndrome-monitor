@@ -1,6 +1,6 @@
 # Havana Syndrome Monitor dataset
 
-Updated 2026-11-18T18:40:19.379426+00:00. 3865 items. https://gruvymann.github.io/havana-syndrome-monitor/
+Updated 2026-11-18T20:40:38.565573+00:00. 3866 items. https://gruvymann.github.io/havana-syndrome-monitor/
 
 No license has been granted for reuse yet. Headlines and the linked articles remain the property of their publishers; the dataset holds titles, links, dates and automatically generated labels only (no article text).
 
