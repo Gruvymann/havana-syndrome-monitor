@@ -6,7 +6,14 @@
 <atom:link href="https://gruvymann.github.io/havana-syndrome-monitor/alerts.xml" rel="self" type="application/rss+xml"/>
 <description>Government, court and research items plus high-signal headlines.</description>
 <language>en</language>
-<lastBuildDate>Sun, 22 Nov 2026 17:08:43 +0000</lastBuildDate>
+<lastBuildDate>Sun, 22 Nov 2026 18:53:42 +0000</lastBuildDate>
+<item>
+<title>The US intelligence community declassified a report with conclusions about the “Havana syndrome”</title>
+<link>https://www.golosameriki.com/a/havana-syndrom-not-caused-by-foreign-adversaries/6985676.html</link>
+<guid isPermaLink="false">alert-4498</guid>
+<pubDate>Thu, 02 Mar 2023 08:00:00 +0000</pubDate>
+<description>&lt;p&gt;&lt;i&gt;Голос Америки · Russia · translated from Russian&lt;/i&gt;&lt;/p&gt;&lt;p&gt;According to declassified data released on Wednesday, an extensive investigation by U.S. intelligence has concluded that it is &amp;quot;very unlikely&amp;quot; that a foreign adversary is responsible for the &amp;quot;Havana syndrome&amp;quot; diseases that have affected U.S. diplomats and intelligence officials around the…&lt;/p&gt;&lt;p&gt;Original title: Разведсообщество США рассекретило доклад с выводами о «гаванском синдроме»&lt;/p&gt;</description>
+</item>
 <item>
 <title>The Havana syndrome 🦠 Weapon or disease?</title>
 <link>https://www.youtube.com/watch?v=pcLSMCiEJm8</link>
@@ -428,15 +435,6 @@ Also: https://www.congress.gov/event/118th-Congress/senate-event/335677&lt;/p&gt
 
 Transcript: https://www.govinfo.gov/app/details/CHRG-118shrg55293
 Also:…&lt;/p&gt;</description>
-</item>
-<item>
-<title>New filing in HOGG v. UNITED STATES DEPARTMENT OF STATE: Dismiss</title>
-<link>https://www.courtlistener.com/docket/70580108/hogg-v-united-states-department-of-state/#entry-24</link>
-<guid isPermaLink="false">alert-4272</guid>
-<pubDate>Tue, 17 Nov 2026 00:00:00 +0000</pubDate>
-<description>&lt;p&gt;&lt;i&gt;CourtListener · DCD · United States&lt;/i&gt;&lt;/p&gt;&lt;p&gt;Docket entry 24 filed 2026-11-17 in HOGG v. UNITED STATES DEPARTMENT OF STATE (dcd):
-
-Dismiss&lt;/p&gt;</description>
 </item>
 </channel>
 </rss>
